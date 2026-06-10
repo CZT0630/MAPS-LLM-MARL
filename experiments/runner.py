@@ -451,6 +451,76 @@ def run_baseline(
     return _run_on_policy(algorithm, config, seed, output_root, command)
 
 
+def _compare_run_outputs(
+    left_run_dir: str | Path,
+    right_run_dir: str | Path,
+    atol: float = 1e-7,
+) -> dict[str, Any]:
+    filenames = ("episode_metrics.json", "training_losses.json")
+    max_abs_difference = 0.0
+
+    def compare_values(left: Any, right: Any) -> bool:
+        nonlocal max_abs_difference
+        if isinstance(left, bool) or isinstance(right, bool):
+            return left is right
+        if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+            difference = abs(float(left) - float(right))
+            max_abs_difference = max(max_abs_difference, difference)
+            return math.isclose(float(left), float(right), rel_tol=0.0, abs_tol=atol)
+        if isinstance(left, list) and isinstance(right, list):
+            return len(left) == len(right) and all(
+                compare_values(left_item, right_item)
+                for left_item, right_item in zip(left, right)
+            )
+        if isinstance(left, dict) and isinstance(right, dict):
+            return left.keys() == right.keys() and all(
+                compare_values(left[key], right[key]) for key in left
+            )
+        return left == right
+
+    files_match = {}
+    for filename in filenames:
+        left = json.loads((Path(left_run_dir) / filename).read_text(encoding="utf-8"))
+        right = json.loads((Path(right_run_dir) / filename).read_text(encoding="utf-8"))
+        files_match[filename] = compare_values(left, right)
+
+    return {
+        "passed": all(files_match.values()),
+        "absolute_tolerance": atol,
+        "max_abs_difference": max_abs_difference,
+        "files_match": files_match,
+    }
+
+
+def _run_reproducibility_probe(
+    config: dict[str, Any],
+    seed: int,
+    output_root: str | Path,
+    command: str | None,
+) -> dict[str, Any]:
+    probe_config = copy.deepcopy(config)
+    probe_config["maddpg"].update(
+        {
+            "max_episodes": 2,
+            "max_steps": 5,
+            "batch_size": 2,
+            "train_frequency": 1,
+        }
+    )
+    probe_root = Path(output_root) / "_reproducibility"
+    first = run_baseline("maddpg", probe_config, seed, probe_root, command)
+    second = run_baseline("maddpg", probe_config, seed, probe_root, command)
+    comparison = _compare_run_outputs(first["run_dir"], second["run_dir"])
+    return {
+        **comparison,
+        "algorithm": "maddpg",
+        "seed": seed,
+        "episodes": 2,
+        "steps_per_episode": 5,
+        "run_dirs": [first["run_dir"], second["run_dir"]],
+    }
+
+
 def run_phase1_audit(
     config: dict[str, Any],
     seeds: list[int],
@@ -488,6 +558,20 @@ def run_phase1_audit(
         ]
         for algorithm in SUPPORTED_ALGORITHMS
     }
+    try:
+        reproducibility = _run_reproducibility_probe(
+            config=config,
+            seed=seeds[0],
+            output_root=output_root,
+            command=command,
+        )
+    except Exception as exc:
+        reproducibility = {
+            "passed": False,
+            "algorithm": "maddpg",
+            "seed": seeds[0],
+            "error": repr(exc),
+        }
     checks = {
         "all_algorithms_started": all(by_algorithm.values()),
         "all_runs_passed": all(result.get("status") == "passed" for result in results),
@@ -508,6 +592,7 @@ def run_phase1_audit(
             result.get("extra", {}).get("expert", {}).get("cache_path")
             for result in by_algorithm["legacy_maps"]
         ),
+        "same_seed_training_reproducible": reproducibility["passed"],
     }
     audit = {
         "schema_version": "1.0",
@@ -518,6 +603,7 @@ def run_phase1_audit(
         "checks": checks,
         "gate_1_passed": all(checks.values()),
         "runs": results,
+        "reproducibility_probe": reproducibility,
         "limitations": [
             "The fixed expert cache is synthetic and is only for engineering validation.",
             "The Phase 1 environment still uses the legacy simplified physical model.",

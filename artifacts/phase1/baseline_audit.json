@@ -1,0 +1,221 @@
+{
+  "schema_version": "1.0",
+  "phase": "0-1",
+  "created_at": "2026-06-10T16:38:27.645571+00:00",
+  "seeds": [
+    42,
+    43
+  ],
+  "algorithms": [
+    "maddpg",
+    "legacy_maps",
+    "mappo",
+    "happo"
+  ],
+  "checks": {
+    "all_algorithms_started": true,
+    "all_runs_passed": true,
+    "all_metrics_finite": true,
+    "joint_replay_enabled": true,
+    "centralized_critic_enabled": true,
+    "legacy_expert_cache_present": true,
+    "same_seed_training_reproducible": true
+  },
+  "gate_1_passed": true,
+  "runs": [
+    {
+      "status": "passed",
+      "run_dir": "D:\\Lab_WSPN\\LLM4RL\\results\\phase1\\20260611_003809_819286_maddpg_seed42",
+      "episodes": 20,
+      "updates": 47,
+      "metrics": {
+        "reward": 0.16137539814890714,
+        "latency": 24.8908665160062,
+        "energy": 4.855244376873559,
+        "completion_rate": 1.0
+      },
+      "finite_metrics": true,
+      "extra": {
+        "buffer_size": 200,
+        "joint_replay": true,
+        "centralized_critic": true,
+        "expert": {}
+      },
+      "algorithm": "maddpg",
+      "seed": 42
+    },
+    {
+      "status": "passed",
+      "run_dir": "D:\\Lab_WSPN\\LLM4RL\\results\\phase1\\20260611_003812_590261_legacy_maps_seed42",
+      "episodes": 20,
+      "updates": 47,
+      "metrics": {
+        "reward": 0.15631971573525233,
+        "latency": 21.81289508555389,
+        "energy": 4.981080051466067,
+        "completion_rate": 1.0
+      },
+      "finite_metrics": true,
+      "extra": {
+        "buffer_size": 200,
+        "joint_replay": true,
+        "centralized_critic": true,
+        "expert": {
+          "source": "synthetic_fixed_cache_for_phase1_smoke_only",
+          "cache_path": "D:\\Lab_WSPN\\LLM4RL\\fixtures\\legacy_expert_cache.json",
+          "paper_evidence": false,
+          "parse_valid": true,
+          "fallback_count": 0
+        }
+      },
+      "algorithm": "legacy_maps",
+      "seed": 42
+    },
+    {
+      "status": "passed",
+      "run_dir": "D:\\Lab_WSPN\\LLM4RL\\results\\phase1\\20260611_003814_027789_mappo_seed42",
+      "episodes": 20,
+      "updates": 20,
+      "metrics": {
+        "reward": 0.15675517716296922,
+        "latency": 21.222828182345534,
+        "energy": 5.00603187789366,
+        "completion_rate": 1.0
+      },
+      "finite_metrics": true,
+      "extra": {
+        "continuous_edge_selector": true,
+        "phase3_replacement_required": true
+      },
+      "algorithm": "mappo",
+      "seed": 42
+    },
+    {
+      "status": "passed",
+      "run_dir": "D:\\Lab_WSPN\\LLM4RL\\results\\phase1\\20260611_003816_971172_happo_seed42",
+      "episodes": 20,
+      "updates": 20,
+      "metrics": {
+        "reward": 0.15621457700575364,
+        "latency": 21.152456994022312,
+        "energy": 5.011985122242183,
+        "completion_rate": 1.0
+      },
+      "finite_metrics": true,
+      "extra": {
+        "continuous_edge_selector": true,
+        "phase3_replacement_required": true
+      },
+      "algorithm": "happo",
+      "seed": 42
+    },
+    {
+      "status": "passed",
+      "run_dir": "D:\\Lab_WSPN\\LLM4RL\\results\\phase1\\20260611_003819_102680_maddpg_seed43",
+      "episodes": 20,
+      "updates": 47,
+      "metrics": {
+        "reward": 0.15255572585465732,
+        "latency": 22.254534260111477,
+        "energy": 4.9508938946349135,
+        "completion_rate": 1.0
+      },
+      "finite_metrics": true,
+      "extra": {
+        "buffer_size": 200,
+        "joint_replay": true,
+        "centralized_critic": true,
+        "expert": {}
+      },
+      "algorithm": "maddpg",
+      "seed": 43
+    },
+    {
+      "status": "passed",
+      "run_dir": "D:\\Lab_WSPN\\LLM4RL\\results\\phase1\\20260611_003820_501806_legacy_maps_seed43",
+      "episodes": 20,
+      "updates": 47,
+      "metrics": {
+        "reward": 0.14576219105064978,
+        "latency": 20.541549724616498,
+        "energy": 5.052167868563806,
+        "completion_rate": 1.0
+      },
+      "finite_metrics": true,
+      "extra": {
+        "buffer_size": 200,
+        "joint_replay": true,
+        "centralized_critic": true,
+        "expert": {
+          "source": "synthetic_fixed_cache_for_phase1_smoke_only",
+          "cache_path": "D:\\Lab_WSPN\\LLM4RL\\fixtures\\legacy_expert_cache.json",
+          "paper_evidence": false,
+          "parse_valid": true,
+          "fallback_count": 0
+        }
+      },
+      "algorithm": "legacy_maps",
+      "seed": 43
+    },
+    {
+      "status": "passed",
+      "run_dir": "D:\\Lab_WSPN\\LLM4RL\\results\\phase1\\20260611_003821_890150_mappo_seed43",
+      "episodes": 20,
+      "updates": 20,
+      "metrics": {
+        "reward": 0.15435550472475607,
+        "latency": 21.067220077900696,
+        "energy": 5.055414239033191,
+        "completion_rate": 1.0
+      },
+      "finite_metrics": true,
+      "extra": {
+        "continuous_edge_selector": true,
+        "phase3_replacement_required": true
+      },
+      "algorithm": "mappo",
+      "seed": 43
+    },
+    {
+      "status": "passed",
+      "run_dir": "D:\\Lab_WSPN\\LLM4RL\\results\\phase1\\20260611_003824_020860_happo_seed43",
+      "episodes": 20,
+      "updates": 20,
+      "metrics": {
+        "reward": 0.15426499827953427,
+        "latency": 21.254522463775338,
+        "energy": 5.050578698699812,
+        "completion_rate": 1.0
+      },
+      "finite_metrics": true,
+      "extra": {
+        "continuous_edge_selector": true,
+        "phase3_replacement_required": true
+      },
+      "algorithm": "happo",
+      "seed": 43
+    }
+  ],
+  "reproducibility_probe": {
+    "passed": true,
+    "absolute_tolerance": 1e-07,
+    "max_abs_difference": 0.0,
+    "files_match": {
+      "episode_metrics.json": true,
+      "training_losses.json": true
+    },
+    "algorithm": "maddpg",
+    "seed": 42,
+    "episodes": 2,
+    "steps_per_episode": 5,
+    "run_dirs": [
+      "D:\\Lab_WSPN\\LLM4RL\\results\\phase1\\_reproducibility\\20260611_003826_976896_maddpg_seed42",
+      "D:\\Lab_WSPN\\LLM4RL\\results\\phase1\\_reproducibility\\20260611_003827_341338_maddpg_seed42"
+    ]
+  },
+  "limitations": [
+    "The fixed expert cache is synthetic and is only for engineering validation.",
+    "The Phase 1 environment still uses the legacy simplified physical model.",
+    "MAPPO and HAPPO still use the legacy continuous edge selector until Phase 3."
+  ]
+}

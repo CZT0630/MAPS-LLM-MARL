@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import numpy as np
@@ -40,3 +41,27 @@ def test_maddpg_smoke_run_writes_nonempty_result(tmp_path):
     assert result["episodes"] == 1
     assert result["updates"] > 0
     assert Path(result["run_dir"], "run_manifest.json").exists()
+
+
+def test_same_seed_reproduces_short_training(tmp_path):
+    config = load_config(str(PROJECT_ROOT / "configs" / "smoke.yaml"))
+    config["maddpg"].update(
+        {
+            "max_episodes": 1,
+            "max_steps": 3,
+            "batch_size": 2,
+            "train_frequency": 1,
+        }
+    )
+
+    first = run_baseline("maddpg", config, 42, tmp_path / "first")
+    second = run_baseline("maddpg", config, 42, tmp_path / "second")
+
+    for filename in ("episode_metrics.json", "training_losses.json"):
+        first_output = json.loads(
+            Path(first["run_dir"], filename).read_text(encoding="utf-8")
+        )
+        second_output = json.loads(
+            Path(second["run_dir"], filename).read_text(encoding="utf-8")
+        )
+        assert first_output == second_output

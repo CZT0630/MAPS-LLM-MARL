@@ -6,6 +6,8 @@
 > 核心方法：Constraint-Verified Counterfactual Expert Distillation，简称 CV-CED。  
 > 配套调研：[MAPS 创新定位与最新研究调研](../MAPS_novelty_positioning_report_2026.md)
 
+> 实施状态（2026-06-11）：Phase 0–1 已完成并通过 Gate 1。审计记录见 [PHASE1_BASELINE_AUDIT.md](PHASE1_BASELINE_AUDIT.md)，机器可读证据见 `artifacts/phase1/baseline_audit.json`。Phase 2 尚未开始。
+
 ## 1. 文档用途
 
 本文档是后续代码开发、实验执行和论文重写的主依据。任何新增功能或实验，应能够回答以下问题：
@@ -557,6 +559,8 @@ python -m LLM4RL.main `
 
 ### Phase 0：版本与研究基线冻结
 
+状态：**已完成（2026-06-11）**。
+
 预计：0.5 至 1 天。
 
 任务：
@@ -579,6 +583,8 @@ python -m LLM4RL.main `
 - 新实验目录明确标记 `model_version >= 2`。
 
 ### Phase 1：可运行、可复现的真实基线
+
+状态：**已完成并通过 Gate 1（2026-06-11）**。
 
 预计：3 至 5 天。
 
@@ -1098,19 +1104,19 @@ python -m LLM4RL.main `
 
 ### Sprint 1 Backlog
 
-- [ ] 建立 Git 或代码快照；
-- [ ] 新增依赖清单和运行环境说明；
-- [ ] 修复包结构和 `main.py` 入口；
-- [ ] 建立 `configs/smoke.yaml`；
-- [ ] 新增统一 seed 工具；
-- [ ] 重写 joint replay transition；
-- [ ] 修复 MADDPG centralized critic；
-- [ ] 移除 `num_edges = 5`；
-- [ ] 恢复一个可运行的 Legacy MAPS 训练入口；
-- [ ] 恢复 LLM parser 的最小可用版本；
-- [ ] 新增 action、buffer、seed 和 smoke tests；
-- [ ] 跑 2 seeds、20 episodes 的 baseline smoke comparison；
-- [ ] 输出 `baseline_audit.json`。
+- [x] 建立 Git 或代码快照；
+- [x] 新增依赖清单和运行环境说明；
+- [x] 修复包结构和 `main.py` 入口；
+- [x] 建立 `configs/smoke.yaml`；
+- [x] 新增统一 seed 工具；
+- [x] 重写 joint replay transition；
+- [x] 修复 MADDPG centralized critic；
+- [x] 移除 `num_edges = 5`；
+- [x] 恢复一个可运行的 Legacy MAPS 训练入口；
+- [x] 恢复 LLM parser 的最小可用版本；
+- [x] 新增 action、buffer、seed 和 smoke tests；
+- [x] 跑 2 seeds、20 episodes 的 baseline smoke comparison；
+- [x] 输出 `baseline_audit.json`。
 
 ### Sprint 1 不做
 
@@ -1192,4 +1198,3 @@ python -m LLM4RL.main `
 - 新增实验必须登记配置路径、seed 集合和预期图表。
 - 被放弃的路线写入决策记录，不从历史中删除。
 - 论文中的最终数字只能来自带 manifest 的正式实验目录。
-
