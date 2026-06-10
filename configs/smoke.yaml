@@ -1,0 +1,112 @@
+model_version: 2
+seed: 42
+
+environment:
+  name: "cloud_edge_env_phase1"
+  debug: false
+  num_devices: 3
+  num_edges: 2
+  num_clouds: 1
+  action_space:
+    type: "continuous"
+    dimension: 4
+
+device_specs:
+  user_equipment:
+    count: 3
+    cpu_frequency_range: [0.5, 0.8]
+    alpha_ue: 1e-10
+    transmission_power: 0.5
+    transmission_rate_to_edge: 1e8
+    transmission_rate_to_cloud: 1e9
+  edge_servers:
+    count: 2
+    cpu_frequencies: [5, 7]
+    alpha_es: 3e-10
+    transmission_rate_to_cloud: 1e8
+  cloud_servers:
+    count: 1
+    cpu_frequency: 20
+    alpha_cs: 3e-10
+    parallel_factor: 8.0
+
+network:
+  ue_to_edge_rate: 1e8
+  ue_to_cloud_total_rate: 1e7
+  edge_to_cloud_rate: 1e8
+
+tasks:
+  processing_density: 0.2e9
+  simple_mode: true
+  simple_data_choices: [100, 150, 200, 250]
+  simple_deadline_multiplier: 3.0
+  generator_verbose: false
+  fixed_deadline_seconds: null
+
+reward:
+  type: "normalized"
+  latency_weight: 0.5
+  energy_weight: 0.5
+  deadline_penalty: 1.0
+
+maddpg:
+  max_episodes: 20
+  max_steps: 10
+  train_frequency: 4
+  lr_actor: 0.0003
+  lr_critic: 0.0003
+  gamma: 0.99
+  tau: 0.01
+  buffer_size: 2000
+  batch_size: 16
+  noise_theta: 0.15
+  noise_sigma: 0.1
+
+legacy_maps:
+  max_episodes: 20
+  max_steps: 10
+  train_frequency: 4
+  distill_weight: 0.2
+  expert_cache: "fixtures/legacy_expert_cache.json"
+
+mappo:
+  lr_actor: 0.0003
+  lr_critic: 0.001
+  gamma: 0.99
+  lam: 0.95
+  clip_range: 0.2
+  entropy_coeff: 0.01
+  value_coeff: 0.5
+  update_epochs: 2
+  batch_size: 16
+  max_episodes: 20
+  max_steps: 10
+
+happo:
+  lr_actor: 0.0003
+  lr_critic: 0.001
+  gamma: 0.99
+  lam: 0.95
+  clip_range: 0.2
+  kl_coeff: 0.1
+  entropy_coeff: 0.01
+  value_coeff: 0.5
+  update_epochs: 2
+  batch_size: 16
+  max_episodes: 20
+  max_steps: 10
+
+training:
+  episodes: 20
+  max_steps_per_episode: 10
+  save_frequency: 20
+  log_frequency: 5
+  warm_up_episodes: 0
+
+testing:
+  num_episodes: 2
+  max_steps: 10
+
+phase1:
+  seeds: [42, 43]
+  output_root: "results/phase1"

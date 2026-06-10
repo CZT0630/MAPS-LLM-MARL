@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+results/
+logs/
+*.log
+
+.idea/
+.vscode/
+.DS_Store
+
+# Local credentials and machine-specific overrides.
+.env
+configs/local*.yaml

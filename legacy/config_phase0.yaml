@@ -1,0 +1,294 @@
+# config.yaml
+# 云边端三层架构实验配置 - 简化设备模型版本
+# UE: CPU频率 + 任务负载
+# ES: CPU频率 + 任务负载
+# CS: CPU频率（资源无限）
+
+# 环境配置
+environment:
+  name: "cloud_edge_env"
+  debug: false
+  
+  # 系统架构参数（按简化要求调整）
+  num_devices: 10       # 端侧设备数量（UE）
+  num_edges: 5          # 边缘服务器数量（ES，增加到5个）  
+  num_clouds: 1         # 云服务器数量（CS）
+
+  # 动作空间配置
+  action_space:
+    type: "continuous"
+    dimension: 4       # [α1, α2, α3, edge_id] 
+    
+  # 状态空间配置（简化版）
+  state_space:
+    normalize: true
+    include_task_info: true
+    # 简化后的状态维度：
+    # UE: 2个特征 × 10设备 = 20
+    # ES: 2个特征 × 5服务器 = 10  
+    # CS: 1个特征 × 1服务器 = 1
+    # 任务: 6个特征 × 10任务 = 60
+    # 总计: 91维
+
+# 设备配置（简化版）
+device_specs:
+  user_equipment:
+    count: 10
+    # 简化属性：CPU频率 + 任务负载
+    cpu_frequency_range: [0.5, 0.8]    # GHz，异构配置
+    alpha_ue: 1e-10                     # J/cycle（能耗系数）
+    transmission_power: 0.5             # W（传输功率）
+    
+    # 差异化通信配置
+    transmission_rate_to_edge: 1e8      # 100Mbps（UE→边缘，6G无线）
+    transmission_rate_to_cloud: 1e9   # 1 Gbps（UE→云端，经边缘中转，总延迟更高）
+    
+  edge_servers:
+    count: 5
+    # 简化属性：CPU频率 + 任务负载
+    cpu_frequencies: [5, 6, 7, 8, 9]  # GHz，异构配置
+    alpha_es: 3e-10                     # J/cycle（能耗系数）
+    transmission_rate_to_cloud: 1e8    # 1 Gbps（边缘→云端）
+    
+  cloud_servers:
+    count: 1
+    # 简化属性：仅CPU频率（资源无限）
+    cpu_frequency: 20                   # GHz
+    alpha_cs: 3e-10                    # J/cycle（能耗系数）
+    parallel_factor: 8.0               # 强大的并行处理能力
+
+# 网络配置（差异化通信延迟）
+network:
+  # 边缘通信：快速、低延迟
+  ue_to_edge_rate: 1e8        # 1 Gbps (6G无线，直连)
+  
+  # 云端通信：慢速、高延迟（需要中转）  
+  ue_to_cloud_total_rate: 10e6  # 10 Mbps (UE→边缘→云的总带宽)
+  edge_to_cloud_rate: 1e8    # 1 Gbps (边缘→云端，光纤)
+  
+  # 延迟模型说明：
+  # - 边缘卸载：UE直接传输到边缘，低延迟
+  # - 云端卸载：UE→边缘→云端的两跳传输，高延迟
+  # - 云端资源无限，无等待时间
+  # - 边缘资源有限，存在队列等待
+
+# 任务特性配置  
+tasks:
+  processing_density: 0.2e9  # 0.2 Gcycles/MB
+
+  # 简化模式（A2C-MEC 风格）
+  simple_mode: true            # 每步每设备生成一个任务，忽略泊松与类型概率
+  simple_data_choices: [100, 150, 200, 250]  # 每设备任务数据量候选集（MB）
+  simple_deadline_multiplier: 3.0            # 截止时间倍数（基于最慢设备本地时间）
+  generator_verbose: false     # 任务生成阶段是否打印详细统计
+  fixed_deadline_seconds: null # 固定截止时间（秒），设置后覆盖倍数策略
+
+# MADDPG算法配置
+maddpg:
+  num_agents: 10             # 等于设备数量
+  
+  # 网络结构
+  actor_hidden_dims: [128, 64]
+  critic_hidden_dims: [256, 128]
+  
+  # 训练参数（简化）
+  max_episodes: 300
+  max_steps: 100
+  train_frequency: 20
+  
+  # 学习率
+  lr_actor: 0.0003
+  lr_critic: 0.0003
+  gamma: 0.99               # 折扣因子
+  tau: 0.005                # 软更新系数
+  
+  # 经验回放
+  buffer_size: 100000
+  batch_size: 256
+  
+  # 探索噪声
+  noise_type: "ou"          # Ornstein-Uhlenbeck噪声
+  noise_theta: 0.15
+  noise_sigma: 0.2
+  noise_decay: 0.995
+
+# 奖励函数配置
+reward:
+  type: "inverse"        # 奖励类型: inverse (倒数和), weighted_sum (加权倒数), normalized (归一化提升)
+  latency_weight: 0.5    # 时延权重
+  energy_weight: 0.5     # 能耗权重
+  deadline_penalty: 5.0  # 截止时间惩罚 (任务失败时的额外惩罚)
+
+# LLM+MADDPG算法配置
+llm_maddpg:
+  # 继承MADDPG基础配置
+  inherit_from: "maddpg"
+  
+  # LLM特定训练参数（简化）
+  max_episodes: 300
+  max_steps: 100
+  train_frequency: 20
+  
+  # LLM指导策略
+  llm_episode_interval: 5
+  llm_distill_weight: 0.1   # 🆕 LLM知识蒸馏权重（固定权重模式下使用）
+  
+  # 🆕 三阶段退火策略配置
+  use_annealing: true                     # 启用退火策略
+  initial_llm_distill_weight: 0.5        # 初始蒸馏权重（简化）
+  constant_llm_distill_weight: 0.15      # 恒定期蒸馏权重（平衡探索与利用）
+  final_llm_distill_weight: 0.0          # 最终蒸馏权重（完全自主学习）
+  stage1_end_episode: 100
+  stage2_end_episode: 250
+  # 阶段3从701轮开始，在100轮内快速退火到0
+  
+  # 早期探索增强
+  exploration_episodes: 150
+
+mappo:
+  lr_actor: 0.0003
+  lr_critic: 0.001
+  gamma: 0.99
+  lam: 0.95
+  clip_range: 0.2
+  entropy_coeff: 0.01
+  value_coeff: 0.5
+  update_epochs: 4
+  batch_size: 64
+  max_episodes: 200
+  max_steps: 200
+
+happo:
+  lr_actor: 0.0003
+  lr_critic: 0.001
+  gamma: 0.99
+  lam: 0.95
+  clip_range: 0.2
+  kl_coeff: 0.5
+  entropy_coeff: 0.01
+  value_coeff: 0.5
+  update_epochs: 4
+  batch_size: 64
+  max_episodes: 200
+  max_steps: 200
+
+# LLM配置
+llm:
+  # LLM服务配置（qwen3-14b）
+  base_url: "http://10.200.1.35:8888/v1/completions"
+  model_name: "qwen3-14b"
+  api_key: ""
+  
+  # # 阿里云LLM服务配置（qwen-plus）
+  # base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+  # model_name: "qwen-plus-latest"
+  # api_key: "sk-1907a18fea6640c6aac5b4194920169f"
+  
+  # 连接参数
+  timeout: 120              # 连接超时时间(秒)
+  read_timeout: 500         # 读取超时时间(秒)
+  max_retries: 1            # 最大重试次数
+  
+  # LLM指导参数
+  temperature: 0.3
+  max_tokens: 32768         # 最大token数，确保完整响应
+  enable_expert_guidance: true
+
+# 随机种子
+seed: 42
+
+# 测试配置
+testing:
+  num_episodes: 100
+  max_steps: 100
+  save_results: true        # 保存测试结果
+  detailed_logging: true    # 详细日志
+
+# 训练配置（统一管理）
+training:
+  # 通用训练参数
+  episodes: 300
+  save_frequency: 50
+  log_frequency: 10
+  plot_frequency: 100
+  
+  # 训练策略
+  warm_up_episodes: 0      # 🆕 预热轮数（不进行训练，只收集经验）
+  early_stopping_patience: 100  # 早停耐心值（100轮无改善则停止）
+  convergence_threshold: 0.01   # 🆕 收敛阈值（奖励变化小于此值认为收敛）
+  
+  # 训练模式选择
+  algorithms:
+    maddpg:
+      enabled: true
+      max_episodes: 300
+      max_steps: 100
+      train_frequency: 20
+      
+    llm_maddpg:
+      enabled: true  
+      max_episodes: 300
+      max_steps: 100
+      train_frequency: 20
+      
+    llm_only:
+      enabled: true
+      max_episodes: 100     # 🆕 纯LLM算法episode数
+      max_steps: 10
+      train_frequency: null  # 纯LLM不需要训练频率
+
+# 奖励函数配置
+  reward:
+  # 奖励权重
+    latency_weight: 10.0      # 时延改善奖励权重
+    energy_weight: 5.0        # 能耗改善奖励权重
+    deadline_weight: 0.0      # 截止时间满足奖励权重
+    balance_weight: 0      # 负载均衡奖励权重
+  
+  # # 惩罚配置
+  # overtime_penalty: 10.0    # 超时惩罚权重
+  # communication_penalty: 0.1 # 过度通信惩罚（鼓励减少不必要的云端卸载）
+
+# 🆕 实验对比配置
+comparison:
+  # 对比实验设置
+  run_all_algorithms: true   # 是否运行所有算法进行对比
+  
+  # 统一测试参数
+  test_episodes: 100
+  test_steps: 100
+  
+  # 性能指标计算
+  metrics_window: 50        # 计算平均性能的窗口大小
+  
+  # 结果保存
+  save_comparison_plots: true
+  save_detailed_logs: true
+
+# 简化设计原则
+design_principles:
+    - "边缘场景的时延敏感性：队列等待时间比资源利用率更重要"
+    - "CPU频率是设备计算能力的最直接指标"
+    - "任务负载 = 当前执行剩余时间 + 队列中所有任务处理时间"
+    - "云服务器资源无限，无任务负载概念"
+    - "差异化通信延迟：边缘快速、云端慢速，平衡计算卸载选择"
+    - "训练频率优化：MADDPG更频繁训练，LLM+MADDPG给专家指导更多空间"
+
+# 实验假设条件（更新）
+assumptions:
+    - "网络带宽在短时窗口内稳定，但边缘和云端通信存在显著延迟差异"
+    - "任务分割后无依赖关系，可按任意比例划分和卸载"  
+    - "边缘服务器资源有限，存在队列等待；云服务器资源无限"
+    - "采用时分多址(TDMA)技术避免干扰"
+    - "云端卸载经边缘服务器中转，总通信延迟更高"
+    - "🆕 训练频率差异化：纯强化学习需要更频繁更新，专家指导学习需要更多时间消化知识"
+
+# 性能指标
+metrics:
+    - "平均任务完成时延"
+    - "总能耗消耗"
+    - "截止时间满足率"
+    - "边缘服务器负载均衡度"
+    - "通信效率（边缘vs云端卸载比例）"
+    - "🆕 训练收敛速度"
+    - "🆕 算法性能对比"

@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "source": "synthetic_fixed_cache_for_phase1_smoke_only",
+  "paper_evidence": false,
+  "default": {
+    "strategies": [
+      {
+        "device_id": 0,
+        "local_ratio": 0.25,
+        "edge_ratio": 0.55,
+        "cloud_ratio": 0.20,
+        "target_edge": 0
+      },
+      {
+        "device_id": 1,
+        "local_ratio": 0.20,
+        "edge_ratio": 0.50,
+        "cloud_ratio": 0.30,
+        "target_edge": 1
+      },
+      {
+        "device_id": 2,
+        "local_ratio": 0.30,
+        "edge_ratio": 0.35,
+        "cloud_ratio": 0.35,
+        "target_edge": 0
+      }
+    ]
+  }
+}

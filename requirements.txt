@@ -1,0 +1,7 @@
+gymnasium>=0.28
+numpy>=1.23
+pandas>=1.5
+PyYAML>=6.0
+requests>=2.28
+torch>=2.0
+pytest>=7.0
