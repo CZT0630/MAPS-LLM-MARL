@@ -1,0 +1,151 @@
+# configs/smoke_phase2.yaml
+# Phase 2 smoke 测试配置 — 最小可行的 Phase 2 物理模型
+#
+# NOTE: 本文件由人工完成 Phase 2 初稿，已由 Codex 于 2026-06-11 审查并修复。
+
+model_version: 2
+seed: 42
+
+environment:
+  name: "cloud_edge_env_phase2"
+  physics_version: 2
+  debug: false
+  num_devices: 3
+  num_edges: 2
+  num_clouds: 1
+  delta_t: 1.0  # 时隙长度 (秒)
+  action_space:
+    type: "continuous"
+    dimension: 4
+
+device_specs:
+  user_equipment:
+    count: 3
+    cpu_frequency_range: [0.5, 0.8]
+    alpha_ue: 1e-10
+    transmission_power: 0.5
+    transmission_rate_to_edge: 1e8  # Phase 1 兼容
+    transmission_rate_to_cloud: 1e9
+  edge_servers:
+    count: 2
+    cpu_frequencies: [5, 7]
+    alpha_es: 3e-10
+    transmission_rate_to_cloud: 1e8
+  cloud_servers:
+    count: 1
+    cpu_frequency: 20
+    alpha_cs: 3e-10
+    parallel_factor: 8.0
+
+# Phase 2: 无线信道模型
+channel:
+  bandwidth_hz: 1e6           # 1 MHz
+  transmit_power_w: 0.5       # 0.5 W
+  noise_psd_w_hz: 1e-17       # N0
+  path_loss_exponent: 3.0
+  ref_distance_m: 1.0
+  ref_distance_gain_db: 0.0
+  default_distance_m: 100.0   # UE 到 ES 默认距离
+  downlink_transmit_power_w: 0.5  # 简化：ES 下行发射功率
+
+# Phase 2: 有线回传链路
+backhaul:
+  rate_bps: 1e9               # 1 Gbps
+  energy_per_bit: 1e-9        # 1 nJ/bit
+  propagation_latency_s: 0.002 # 2 ms
+
+# Phase 2: DVFS 能耗模型 (E = kappa * cycles * f_Hz^2)
+energy:
+  kappa_ue: 1e-28             # J / (cycle * Hz^2)
+  kappa_es: 3e-28             # J / (cycle * Hz^2)
+  kappa_cs: 3e-28             # J / (cycle * Hz^2)
+
+# 任务配置
+tasks:
+  processing_density: 0.2e9
+  simple_mode: false           # Phase 2 关闭 simple_mode
+  output_ratio: 0.1            # 结果返回数据量比例
+  semantic_type_weights:
+    video_analytics: 0.25
+    ar_vr: 0.25
+    ai_inference: 0.25
+    control: 0.25
+  generator_verbose: false
+  fixed_deadline_seconds: null
+
+# 网络配置（Phase 1 兼容，Phase 2 使用 channel/backhaul 模型）
+network:
+  ue_to_edge_rate: 1e8
+  ue_to_cloud_total_rate: 1e7
+  edge_to_cloud_rate: 1e8
+
+# 奖励配置
+reward:
+  type: "normalized"
+  latency_weight: 0.5
+  energy_weight: 0.5
+  deadline_penalty: 1.0
+  energy_scope: "user"         # 奖励口径；系统总能耗仍单独记录
+
+# 算法配置
+maddpg:
+  max_episodes: 20
+  max_steps: 10
+  train_frequency: 4
+  lr_actor: 0.0003
+  lr_critic: 0.0003
+  gamma: 0.99
+  tau: 0.01
+  buffer_size: 2000
+  batch_size: 16
+  noise_theta: 0.15
+  noise_sigma: 0.1
+
+legacy_maps:
+  max_episodes: 20
+  max_steps: 10
+  train_frequency: 4
+  distill_weight: 0.2
+  expert_cache: "fixtures/legacy_expert_cache.json"
+
+mappo:
+  lr_actor: 0.0003
+  lr_critic: 0.001
+  gamma: 0.99
+  lam: 0.95
+  clip_range: 0.2
+  entropy_coeff: 0.01
+  value_coeff: 0.5
+  update_epochs: 2
+  batch_size: 16
+  max_episodes: 20
+  max_steps: 10
+
+happo:
+  lr_actor: 0.0003
+  lr_critic: 0.001
+  gamma: 0.99
+  lam: 0.95
+  clip_range: 0.2
+  kl_coeff: 0.1
+  entropy_coeff: 0.01
+  value_coeff: 0.5
+  update_epochs: 2
+  batch_size: 16
+  max_episodes: 20
+  max_steps: 10
+
+training:
+  episodes: 20
+  max_steps_per_episode: 10
+  save_frequency: 20
+  log_frequency: 5
+  warm_up_episodes: 0
+
+testing:
+  num_episodes: 2
+  max_steps: 10
+
+phase2:
+  seeds: [42, 43]
+  output_root: "results/phase2"

@@ -1,14 +1,25 @@
 # environment/cloud_edge_env.py
 """
-云边端三层架构卸载环境 - 简化版设备模型
-- UE: CPU频率 + 任务负载
-- ES: CPU频率 + 任务负载
-- CS: CPU频率（资源无限）
-- 考虑差异化通信延迟：边缘通信快，云端通信慢
+云边端三层架构卸载环境 — Phase 1 + Phase 2 双版本兼容
+
+Phase 1 (environment.physics_version < 2):
+  - 简化物理模型，常数传输速率
+  - simple_mode 下每步清空队列 (memoryless)
+Phase 2 (environment.physics_version >= 2):
+  - 显式 delta_t 时隙
+  - 不丢任务的队列演化
+  - Shannon 无线信道速率模型
+  - 有线回传链路 (ES→CS)
+  - 下行结果返回
+  - 并行分支最大完成时延
+  - environment snapshot 与纯函数式评估
+
+NOTE: 本文件由人工完成 Phase 2 初稿，已由 Codex 于 2026-06-11 审查并修复。
 """
 import numpy as np
 import gymnasium as gym
 import random
+import copy
 from gymnasium import spaces
 from collections import defaultdict
 from .device_models import UserEquipment, EdgeServer, CloudServer
@@ -50,27 +61,58 @@ class CloudEdgeDeviceEnv(gym.Env):
         super(CloudEdgeDeviceEnv, self).__init__()
 
         self.config = config
-        
+        self.model_version = config.get('model_version', 1)
+        self.physics_version = int(
+            config.get('environment', {}).get('physics_version', 1)
+        )
+
         # 基础配置
         self.num_devices = config.get('environment', {}).get('num_devices', 10)
         self.num_edges = config.get('environment', {}).get('num_edges', 5)
         self.num_clouds = config.get('environment', {}).get('num_clouds', 1)
-        
 
         # 创建设备
         self._create_devices()
 
-        # 任务生成器
-        self.task_generator = TaskGenerator(config.get('tasks', {}))
+        # 结果格式版本与物理模型版本相互独立。
+        tg_cfg = copy.deepcopy(config.get('tasks', {}))
+        tg_cfg['model_version'] = self.model_version
+        tg_cfg['physics_version'] = self.physics_version
+        self.task_generator = TaskGenerator(tg_cfg)
         self.debug = config.get('environment', {}).get('debug', False)
+
+        # Phase 2: 时隙与物理模型
+        self.time_step_duration = float(config.get('environment', {}).get('delta_t', 1.0))
+        if self.physics_version >= 2:
+            from .channel_model import build_channel_from_config
+            from .backhaul_model import build_backhaul_from_config
+            self.channel = build_channel_from_config(config)
+            self.backhaul = build_backhaul_from_config(config)
+            # 为 UE 分配到各 ES 的距离
+            default_dist = float(config.get('channel', {}).get('default_distance_m', 100.0))
+            for ue in self.user_equipments:
+                ue.distance_to_edges = [default_dist] * self.num_edges
         
         # 简化：删除复杂到达与应用混合配置，任务生成统一使用 TaskGenerator 简化模式
 
         # 状态空间维度计算
-        self.state_dim = (2 * self.num_devices +
-                         2 * self.num_edges +
-                         1 * self.num_clouds +
-                         2 * self.num_devices)
+        self.phase2_ue_feature_dim = 3
+        self.phase2_task_feature_dim = 9
+        if self.physics_version >= 2:
+            self.state_dim = (
+                self.phase2_ue_feature_dim * self.num_devices
+                + 2 * self.num_edges
+                + 2 * self.num_clouds
+                + self.num_devices * self.num_edges
+                + self.phase2_task_feature_dim * self.num_devices
+            )
+        else:
+            self.state_dim = (
+                2 * self.num_devices
+                + 2 * self.num_edges
+                + 1 * self.num_clouds
+                + 2 * self.num_devices
+            )
 
         # 定义观察和动作空间
         self.observation_space = spaces.Box(
@@ -91,10 +133,12 @@ class CloudEdgeDeviceEnv(gym.Env):
 
         # 任务执行跟踪
         self.current_tasks = None
+        self.pending_task_queues = [
+            [] for _ in range(self.num_devices)
+        ]
         self.task_executions = defaultdict(list)  # 按节点分组的执行队列
         self.completed_tasks_history = []  # 已完成任务的历史记录
         self.global_time = 0.0  # 全局时间步
-        self.time_step_duration = 1.0  # 每个step的持续时间（秒）
         
         # Episode控制
         self.episode_step = 0
@@ -111,6 +155,13 @@ class CloudEdgeDeviceEnv(gym.Env):
         self.latency_weight = float(self.reward_cfg.get('latency_weight', 1.0))
         self.energy_weight = float(self.reward_cfg.get('energy_weight', 1.0))
         self.deadline_penalty = float(self.reward_cfg.get('deadline_penalty', 0.0))
+        self.reward_energy_scope = self.reward_cfg.get(
+            'energy_scope', 'system'
+        )
+        if self.reward_energy_scope not in {'user', 'system'}:
+            raise ValueError(
+                "reward.energy_scope must be either 'user' or 'system'"
+            )
         
         # 任务生成控制（简化）
         self.last_generation_step = 0
@@ -195,6 +246,9 @@ class CloudEdgeDeviceEnv(gym.Env):
         self.completed_tasks_history.clear()
         self.global_time = 0.0
         self.episode_step = 0
+        self.pending_task_queues = [
+            [] for _ in range(self.num_devices)
+        ]
         
         
         # 重置统计信息
@@ -233,13 +287,36 @@ class CloudEdgeDeviceEnv(gym.Env):
         if getattr(self.task_generator, 'simple_mode', True):
             device_tasks_dict = self.task_generator.generate_simple_tasks(
                 num_devices=self.num_devices,
-                step=self.episode_step
+                step=self.episode_step,
+                current_time=self.global_time,
             )
         else:
             device_tasks_dict = self.task_generator.generate_poisson_tasks(
                 num_devices=self.num_devices,
-                step=self.episode_step
+                step=self.episode_step,
+                current_time=self.global_time,
             )
+
+        if self.physics_version >= 2:
+            generated_count = 0
+            for device_id in range(self.num_devices):
+                for task_data in device_tasks_dict.get(device_id, []):
+                    task_data = dict(task_data)
+                    task_data['arrival_time'] = self.global_time
+                    task_data['arrival_slot'] = self.episode_step
+                    task = Task(task_data)
+                    task.creation_step = self.episode_step
+                    self.pending_task_queues[device_id].append(task)
+                    generated_count += 1
+            self.task_completion_stats['total_tasks_generated'] += generated_count
+            self._refresh_current_tasks()
+            if self.debug:
+                print(
+                    f"   生成结果: {generated_count} 个任务，"
+                    f"待决策积压={sum(len(q) for q in self.pending_task_queues)}"
+                )
+            return
+
         self.current_tasks = []
         for device_id in range(self.num_devices):
             if device_id in device_tasks_dict and device_tasks_dict[device_id]:
@@ -254,26 +331,56 @@ class CloudEdgeDeviceEnv(gym.Env):
             valid_tasks = sum(1 for task in self.current_tasks if task is not None)
             print(f"   生成结果: {valid_tasks}/{self.num_devices} 个设备有任务")
 
+    def _refresh_current_tasks(self):
+        self.current_tasks = [
+            queue[0] if queue else None
+            for queue in self.pending_task_queues
+        ]
+
+    def _consume_current_tasks(self, has_task_list):
+        for device_id, has_task in enumerate(has_task_list):
+            if has_task and self.pending_task_queues[device_id]:
+                self.pending_task_queues[device_id].pop(0)
+        self._refresh_current_tasks()
+
+    def _mark_pending_arrivals_failed(self):
+        for device_id, queue in enumerate(self.pending_task_queues):
+            for task in queue:
+                self.task_completion_stats['tasks_failed'] += 1
+                self.task_completion_stats['timeout_reasons'].append(
+                    {
+                        'task_id': task.task_id,
+                        'device_id': device_id,
+                        'reason': 'episode_ended_before_admission',
+                        'step': self.episode_step,
+                    }
+                )
+
     # 删除：时间模式、突发事件、应用混合与系统负载相关生成逻辑
 
     def step(self, actions, llm_actions=None):
         """
         环境步进
-        
+
         Args:
             actions: Agent的动作 shape=(num_devices, 4) [α1, α2, α3, edge_id] 或 list
             llm_actions: LLM专家动作 shape=(num_devices, 4) 或 list
-        
+
         Returns:
             observation, rewards, terminated, truncated, info
         """
+        # Phase 2 分支
+        if self.physics_version >= 2:
+            return self._step_phase2(actions, llm_actions)
+
+        # --- Phase 1 原有逻辑 ---
         if self.debug:
             print(f"\n{'='*80}")
             print(f"开始执行 Step {self.episode_step + 1}")
             print(f"{'='*80}")
-        
+
         self.episode_step += 1
-        
+
         # 🆕 简化模式核心逻辑：Memoryless (无记忆)
         # 在每个Step开始时，强制清空所有队列，确保独立性
         if getattr(self.task_generator, 'simple_mode', False):
@@ -396,12 +503,14 @@ class CloudEdgeDeviceEnv(gym.Env):
         # 更新端侧设备
         for ue in self.user_equipments:
             ue.update_tasks(time_elapsed)
-            
+
         # 更新边缘服务器
         for es in self.edge_servers:
             es.update_tasks(time_elapsed)
-        
-        # 云服务器无需更新（资源无限，任务立即执行）
+
+        # 云服务器（Phase 2 有队列，Phase 1 无操作）
+        for cs in self.cloud_servers:
+            cs.update_tasks(time_elapsed)
 
     def _clear_all_queues(self):
         """Clear legacy queues in simple-mode Phase 1 experiments."""
@@ -411,6 +520,226 @@ class CloudEdgeDeviceEnv(gym.Env):
             es.reset()
         for cs in self.cloud_servers:
             cs.reset()
+
+    # ------------------------------------------------------------------
+    # Phase 2: step 实现
+    # ------------------------------------------------------------------
+
+    def _step_phase2(self, actions, llm_actions=None):
+        """Phase 2 环境步进。
+
+        特点：
+          - 不清空队列（跨时隙演化）
+          - 使用 Shannon 无线信道速率
+          - 有线回传链路 (ES→CS)
+          - 下行结果返回
+          - 并行分支最大完成时延
+          - DVFS 能耗模型
+        """
+        actions = np.asarray(actions, dtype=np.float64)
+        if actions.ndim == 1:
+            if self.num_devices != 1:
+                raise ValueError(
+                    "joint actions must have shape (num_devices, 4)"
+                )
+            actions = actions.reshape(1, -1)
+        if actions.shape != (self.num_devices, 4):
+            raise ValueError(
+                f"expected actions shape {(self.num_devices, 4)}, "
+                f"got {actions.shape}"
+            )
+
+        # 1. 在时隙起点对联合动作做无副作用评估。
+        evaluation = self.evaluate_action(actions.tolist())
+        per_ue_detail = evaluation.detail['per_ue']
+        rewards = np.zeros(self.num_devices, dtype=np.float64)
+        has_task_list = [
+            task is not None for task in self.current_tasks
+        ]
+        total_latencies = list(evaluation.latency_per_ue)
+        total_energies = list(evaluation.energy_per_ue)
+        communication_latencies = []
+        computation_latencies = []
+        user_energies = []
+
+        # 2. 应用与 evaluator 相同的调度计划。
+        for device_idx, task in enumerate(self.current_tasks):
+            detail = per_ue_detail[device_idx]
+            if task is None or detail is None:
+                communication_latencies.append(0.0)
+                computation_latencies.append(0.0)
+                user_energies.append(0.0)
+                continue
+
+            normalized_action = detail['normalized_action']
+            task.set_split_ratios(*normalized_action[:3])
+            self._enqueue_phase2_plan(device_idx, task, detail)
+            latency = total_latencies[device_idx]
+            system_energy = total_energies[device_idx]
+            reward_energy = (
+                detail['user_energy']
+                if self.reward_energy_scope == 'user'
+                else system_energy
+            )
+            self._check_task_completion(task, latency)
+            rewards[device_idx] = self._calculate_reward(
+                latency,
+                reward_energy,
+                detail['baseline_latency'],
+                detail['baseline_energy'],
+                task.deadline,
+                normalized_action[3],
+            )
+            communication_latencies.append(
+                detail['communication_latency']
+            )
+            computation_latencies.append(
+                detail['computation_latency']
+            )
+            user_energies.append(detail['user_energy'])
+            self.step_stats['total_latency'] += latency
+            self.step_stats['total_energy'] += system_energy
+            self.step_stats['communication_latency'] += detail[
+                'communication_latency'
+            ]
+            self.step_stats['computation_latency'] += detail[
+                'computation_latency'
+            ]
+
+        # 3. 当前任务已被调度，随后推进一个完整时隙的服务。
+        self._consume_current_tasks(has_task_list)
+        self._update_all_devices(self.time_step_duration)
+        self.global_time += self.time_step_duration
+        self.episode_step += 1
+
+        # 4. 检查是否结束
+        max_steps_reached = self.episode_step >= self.max_steps
+        terminated = False
+        truncated = max_steps_reached
+
+        # 5. 为下一步生成新任务
+        if not (terminated or truncated):
+            self._generate_new_tasks()
+        else:
+            self._mark_pending_arrivals_failed()
+
+        # 6. info
+        info = {
+            'total_latencies': total_latencies,
+            'total_energies': total_energies,
+            'user_energies': user_energies,
+            'energy_scope': 'system',
+            'reward_energy_scope': self.reward_energy_scope,
+            'communication_latencies': communication_latencies,
+            'computation_latencies': computation_latencies,
+            'episode_step': self.episode_step,
+            'global_time': self.global_time,
+            'step_stats': self.step_stats.copy(),
+            'llm_actions': llm_actions if llm_actions is not None else [],
+            'task_completion_stats': self.get_task_completion_rate(),
+            'deadline_violations': self.task_completion_stats['deadline_violations'].copy(),
+            'timeout_reasons': self.task_completion_stats['timeout_reasons'].copy(),
+            'maddpg_actions': actions.tolist(),
+            'maddpg_rewards': rewards.tolist(),
+            'has_task_list': has_task_list,
+            'ue_wait_times': [ue.calculate_task_load() for ue in self.user_equipments],
+            'es_wait_times': [es.calculate_task_load() for es in self.edge_servers],
+            'cs_wait_times': [cs.calculate_task_load() for cs in self.cloud_servers],
+            'queue_backlogs': [
+                int(ue.current_execution is not None) + len(ue.task_queue)
+                for ue in self.user_equipments
+            ],
+            'arrival_queue_backlogs': [
+                len(queue) for queue in self.pending_task_queues
+            ],
+            'evaluation': evaluation,
+        }
+
+        return self._get_observation(), rewards, terminated, truncated, info
+
+    def _execute_offloading_decision_phase2(self, device_idx, action):
+        """Phase 2 卸载决策。
+
+        使用 Shannon 无线信道、有线回传、DVFS 能耗和并行分支最大时延。
+        """
+        if self.current_tasks is None or device_idx >= len(self.current_tasks):
+            return 0.0, {
+                'total_latency': 0.0, 'total_energy': 0.0,
+                'communication_latency': 0.0, 'computation_latency': 0.0,
+            }
+
+        task = self.current_tasks[device_idx]
+        if task is None:
+            return 0.0, {
+                'total_latency': 0.0, 'total_energy': 0.0,
+                'communication_latency': 0.0, 'computation_latency': 0.0,
+            }
+
+        from .snapshot import capture_snapshot, evaluate
+
+        snapshot = capture_snapshot(self)
+        for index, ue_snapshot in enumerate(snapshot.ues):
+            if index != device_idx:
+                ue_snapshot.current_task = None
+        joint_action = [[1.0, 0.0, 0.0, 0.0] for _ in range(self.num_devices)]
+        joint_action[device_idx] = list(action)
+        evaluation = evaluate(snapshot, joint_action)
+        detail = evaluation.detail['per_ue'][device_idx]
+        normalized_action = detail['normalized_action']
+        task.set_split_ratios(*normalized_action[:3])
+        self._enqueue_phase2_plan(device_idx, task, detail)
+        total_latency = evaluation.latency_per_ue[device_idx]
+        total_energy = evaluation.energy_per_ue[device_idx]
+        self._check_task_completion(task, total_latency)
+        reward_energy = (
+            detail['user_energy']
+            if self.reward_energy_scope == 'user'
+            else total_energy
+        )
+        reward = self._calculate_reward(
+            total_latency,
+            reward_energy,
+            detail['baseline_latency'],
+            detail['baseline_energy'],
+            task.deadline,
+            normalized_action[3],
+        )
+
+        return reward, {
+            'total_latency': total_latency,
+            'total_energy': total_energy,
+            'communication_latency': detail['communication_latency'],
+            'computation_latency': detail['computation_latency'],
+            'local_baseline': (
+                detail['baseline_latency'],
+                detail['baseline_energy'],
+            ),
+        }
+
+    def _enqueue_phase2_plan(self, device_idx, task, detail):
+        """Apply a plan produced by snapshot.evaluate to real compute queues."""
+        branches = detail['branches']
+        if 'local' in branches:
+            branch = branches['local']
+            self.user_equipments[device_idx].add_task(
+                f"{task.task_id}_local",
+                branch['cycles'],
+                branch['release_time'],
+            )
+        if 'edge' in branches:
+            branch = branches['edge']
+            self.edge_servers[branch['edge_id']].add_task(
+                f"{task.task_id}_edge",
+                branch['cycles'],
+                branch['release_time'],
+            )
+        if 'cloud' in branches:
+            branch = branches['cloud']
+            self.cloud_servers[branch['cloud_id']].add_task(
+                f"{task.task_id}_cloud",
+                branch['cycles'],
+                branch['release_time'],
+            )
 
     def _execute_offloading_decision(self, device_idx, action):
         """执行单个设备的卸载决策 - 考虑差异化通信延迟"""
@@ -638,6 +967,9 @@ class CloudEdgeDeviceEnv(gym.Env):
         3. CS状态：CPU频率
         4. 任务状态：类型、数据大小、CPU周期、截止时间、剩余时间、紧急程度
         """
+        if self.physics_version >= 2:
+            return self._get_phase2_observation()
+
         observation = []
         
         # 1. UE状态 (每个设备2个特征)
@@ -688,6 +1020,66 @@ class CloudEdgeDeviceEnv(gym.Env):
                 
         return np.array(observation, dtype=np.float32)
 
+    def _get_phase2_observation(self):
+        """Encode queues, channels, and task semantics for Phase 2."""
+        observation = []
+
+        for device_id, ue in enumerate(self.user_equipments):
+            arrival_backlog_norm = min(
+                len(self.pending_task_queues[device_id]) / 10.0, 1.0
+            )
+            observation.extend([*ue.get_state(), arrival_backlog_norm])
+        for es in self.edge_servers:
+            observation.extend(es.get_state())
+        for cs in self.cloud_servers:
+            load_norm = min(cs.calculate_task_load() / 300.0, 1.0)
+            observation.extend(
+                [min(cs.cpu_frequency / 20.0, 1.0), load_norm]
+            )
+
+        rate_scale = float(
+            self.config.get('channel', {}).get(
+                'rate_normalization_bps', 100e6
+            )
+        )
+        if rate_scale <= 0:
+            raise ValueError("channel.rate_normalization_bps must be positive")
+        for ue in self.user_equipments:
+            for edge_id in range(self.num_edges):
+                distance = ue.distance_to_edges[edge_id]
+                rate = self.channel.achievable_rate(distance)
+                observation.append(min(rate / rate_scale, 1.0))
+
+        semantic_types = TaskGenerator.SEMANTIC_TYPES
+        for task in self.current_tasks:
+            if task is None:
+                observation.extend([0.0] * self.phase2_task_feature_dim)
+                continue
+            semantic_one_hot = [
+                float(task.semantic_type == semantic_type)
+                for semantic_type in semantic_types
+            ]
+            elapsed = max(self.global_time - task.arrival_time, 0.0)
+            deadline_slack = max(task.deadline - elapsed, 0.0)
+            observation.extend(
+                [
+                    min(task.task_data_size / 200.0, 1.0),
+                    min(task.task_workload / 100e9, 1.0),
+                    min(deadline_slack / 300.0, 1.0),
+                    min(task.output_ratio, 1.0),
+                    min(task.priority / 3.0, 1.0),
+                    *semantic_one_hot,
+                ]
+            )
+
+        result = np.asarray(observation, dtype=np.float32)
+        if result.shape != self.observation_space.shape:
+            raise RuntimeError(
+                f"Phase 2 observation shape {result.shape} does not match "
+                f"declared {self.observation_space.shape}"
+            )
+        return result
+
     def extract_agent_state(self, global_state, agent_id):
         """
         正确提取单个Agent的观察状态
@@ -705,6 +1097,8 @@ class CloudEdgeDeviceEnv(gym.Env):
         """
         if agent_id < 0 or agent_id >= self.num_devices:
             raise ValueError(f"Agent ID {agent_id} 超出范围 [0, {self.num_devices-1}]")
+        if self.physics_version >= 2:
+            return self._extract_phase2_agent_state(global_state, agent_id)
         
         # 状态分割点计算
         ue_states_end = self.num_devices * 2
@@ -748,6 +1142,33 @@ class CloudEdgeDeviceEnv(gym.Env):
         
         return agent_state.astype(np.float32)
 
+    def _extract_phase2_agent_state(self, global_state, agent_id):
+        global_state = np.asarray(global_state, dtype=np.float32).reshape(-1)
+        ue_end = self.num_devices * self.phase2_ue_feature_dim
+        es_end = ue_end + self.num_edges * 2
+        cs_end = es_end + self.num_clouds * 2
+        channel_end = cs_end + self.num_devices * self.num_edges
+
+        own_ue_start = agent_id * self.phase2_ue_feature_dim
+        own_ue = global_state[
+            own_ue_start:own_ue_start + self.phase2_ue_feature_dim
+        ]
+        edge_states = global_state[ue_end:es_end]
+        cloud_states = global_state[es_end:cs_end]
+        own_channel_start = cs_end + agent_id * self.num_edges
+        own_channels = global_state[
+            own_channel_start:own_channel_start + self.num_edges
+        ]
+        own_task_start = (
+            channel_end + agent_id * self.phase2_task_feature_dim
+        )
+        own_task = global_state[
+            own_task_start:own_task_start + self.phase2_task_feature_dim
+        ]
+        return np.concatenate(
+            [own_ue, edge_states, cloud_states, own_channels, own_task]
+        ).astype(np.float32)
+
     def get_agent_state_dim(self):
         """获取单个Agent的状态维度
         
@@ -759,6 +1180,14 @@ class CloudEdgeDeviceEnv(gym.Env):
         
         总计: 2 + 10 + 1 + 2 = 15维
         """
+        if self.physics_version >= 2:
+            return (
+                self.phase2_ue_feature_dim
+                + self.num_edges * 2
+                + self.num_clouds * 2
+                + self.num_edges
+                + self.phase2_task_feature_dim
+            )
         return 2 + (self.num_edges * 2) + (self.num_clouds * 1) + 2
 
     def get_device_info(self):
@@ -809,6 +1238,11 @@ class CloudEdgeDeviceEnv(gym.Env):
                         'device_id': i,
                         'data_size': task.task_data_size,  # 修复属性名称
                         'cpu_cycles': task.task_workload,     # 修复属性名称
+                        'deadline': task.deadline,
+                        'semantic_type': task.semantic_type,
+                        'output_ratio': task.output_ratio,
+                        'priority': task.priority,
+                        'arrival_time': task.arrival_time,
                     }
                     tasks_info.append(info)
         return tasks_info
@@ -843,6 +1277,32 @@ class CloudEdgeDeviceEnv(gym.Env):
         """关闭环境"""
         pass
 
+    # ------------------------------------------------------------------
+    # Phase 2: Snapshot 与纯函数式评估
+    # ------------------------------------------------------------------
+
+    def capture_snapshot(self):
+        """捕获当前环境快照（只读），用于 verifier 和反事实评估。
+
+        Returns:
+            EnvSnapshot 实例
+        """
+        from .snapshot import capture_snapshot
+        return capture_snapshot(self)
+
+    def evaluate_action(self, joint_action):
+        """纯函数式动作评估，不修改环境状态。
+
+        Args:
+            joint_action: 每个 UE 的动作 [alpha1, alpha2, alpha3, edge_id]
+
+        Returns:
+            EvaluationResult 实例
+        """
+        from .snapshot import evaluate, capture_snapshot
+        snapshot = capture_snapshot(self)
+        return evaluate(snapshot, joint_action)
+
     def _check_task_completion(self, task, actual_latency):
         """
         检查并记录任务完成状态
@@ -856,7 +1316,7 @@ class CloudEdgeDeviceEnv(gym.Env):
             self.task_generation_state['total_concurrent_tasks'] -= 1
         
         # 记录任务完成时间
-        completion_time = self.global_time + actual_latency
+        completion_time = task.arrival_time + actual_latency
         self.task_completion_stats['completion_times'].append(completion_time)
         
         # 检查是否超过截止时间

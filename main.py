@@ -52,7 +52,7 @@ def _apply_overrides(config: dict, episodes: int | None, steps: int | None) -> d
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="MAPS Phase 1 reproducible baseline runner"
+        description="MAPS reproducible baseline and environment runner"
     )
     parser.add_argument(
         "--mode",

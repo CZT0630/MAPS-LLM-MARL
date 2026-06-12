@@ -6,7 +6,7 @@
 > 核心方法：Constraint-Verified Counterfactual Expert Distillation，简称 CV-CED。  
 > 配套调研：[MAPS 创新定位与最新研究调研](../MAPS_novelty_positioning_report_2026.md)
 
-> 实施状态（2026-06-11）：Phase 0–1 已完成并通过 Gate 1。审计记录见 [PHASE1_BASELINE_AUDIT.md](PHASE1_BASELINE_AUDIT.md)，机器可读证据见 `artifacts/phase1/baseline_audit.json`。Phase 2 尚未开始。
+> 实施状态（2026-06-11）：Phase 0–1 已通过 Gate 1；Phase 2 经人工实现和 Codex 独立审查后通过 Gate 2。记录见 [PHASE1_BASELINE_AUDIT.md](PHASE1_BASELINE_AUDIT.md) 与 [PHASE2_IMPLEMENTATION.md](PHASE2_IMPLEMENTATION.md)。
 
 ## 1. 文档用途
 
@@ -618,6 +618,8 @@ python -m LLM4RL.main `
 未通过 Gate 1，不进入系统模型实验。
 
 ### Phase 2：技术可信的端边云环境
+
+状态：**已完成并通过 Gate 2（2026-06-11）**。
 
 预计：5 至 8 天。
 

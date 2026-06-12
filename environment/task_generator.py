@@ -1,13 +1,55 @@
 # environment/task_generator.py
 import numpy as np
 import random
-import time
 
 
 class TaskGenerator:
-    """任务生成器 - 根据实验设置生成不同类型的任务"""
-    
+    """任务生成器 — Phase 1 + Phase 2 双版本兼容。
+
+    Phase 2 新增：
+      - 每个 UE 可能产生多个任务（泊松到达）
+      - 任务包含 semantic_type、output_ratio、arrival_slot
+      - 不丢弃同一时隙多个任务
+
+    NOTE: 本文件由人工完成 Phase 2 初稿，已由 Codex 于 2026-06-11 审查并修复。
+    """
+
+    # Phase 2 任务语义类型
+    SEMANTIC_TYPES = ('video_analytics', 'ar_vr', 'ai_inference', 'control')
+    DEFAULT_SEMANTIC_PROFILES = {
+        'video_analytics': {
+            'data_range': (50.0, 200.0),
+            'processing_density': 0.3e9,
+            'deadline_multiplier': 4.0,
+            'output_ratio': 0.05,
+            'priority': 1,
+        },
+        'ar_vr': {
+            'data_range': (5.0, 20.0),
+            'processing_density': 0.2e9,
+            'deadline_multiplier': 2.0,
+            'output_ratio': 0.2,
+            'priority': 3,
+        },
+        'ai_inference': {
+            'data_range': (2.0, 10.0),
+            'processing_density': 0.5e9,
+            'deadline_multiplier': 3.0,
+            'output_ratio': 0.02,
+            'priority': 2,
+        },
+        'control': {
+            'data_range': (0.5, 2.0),
+            'processing_density': 0.1e9,
+            'deadline_multiplier': 1.5,
+            'output_ratio': 0.05,
+            'priority': 3,
+        },
+    }
+
     def __init__(self, config=None):
+        self.model_version = (config or {}).get('model_version', 1)
+        self.physics_version = int((config or {}).get('physics_version', 1))
         # 任务数据大小范围 (MB)
         self.task_sizes = {
             'small': (1.5, 2.0),      # 小任务：1-5 MB (传感器数据、文本处理)
@@ -50,6 +92,16 @@ class TaskGenerator:
         self.simple_deadline_multiplier = 3.0
         self.generator_verbose = True
         self.fixed_deadline_seconds = None
+        self.output_ratio = 0.1
+        self.output_ratio_overridden = False
+        self.semantic_type_weights = {
+            semantic_type: 1.0 / len(self.SEMANTIC_TYPES)
+            for semantic_type in self.SEMANTIC_TYPES
+        }
+        self.semantic_profiles = {
+            name: dict(profile)
+            for name, profile in self.DEFAULT_SEMANTIC_PROFILES.items()
+        }
         
         # 如果提供了配置，更新默认值
         if config:
@@ -84,46 +136,103 @@ class TaskGenerator:
                 self.generator_verbose = bool(config['generator_verbose'])
             if 'fixed_deadline_seconds' in config and config['fixed_deadline_seconds'] is not None:
                 self.fixed_deadline_seconds = float(config['fixed_deadline_seconds'])
+            if 'output_ratio' in config:
+                self.output_ratio = float(config['output_ratio'])
+                self.output_ratio_overridden = True
+            if 'semantic_type_weights' in config:
+                supplied_weights = config['semantic_type_weights']
+                for semantic_type in self.SEMANTIC_TYPES:
+                    if semantic_type in supplied_weights:
+                        self.semantic_type_weights[semantic_type] = float(
+                            supplied_weights[semantic_type]
+                        )
+            if 'semantic_profiles' in config:
+                for semantic_type, overrides in config['semantic_profiles'].items():
+                    if semantic_type in self.semantic_profiles:
+                        self.semantic_profiles[semantic_type].update(overrides)
+        if not 0.0 <= self.output_ratio <= 1.0:
+            raise ValueError("tasks.output_ratio must be between 0 and 1")
 
-    def generate_single_task(self, task_id=0, device_id=0):
-        """生成单个任务"""
-        # 选择任务类型
-        task_type = np.random.choice(
-            list(self.task_type_weights.keys()),
-            p=list(self.task_type_weights.values())
+    def _sample_semantic_type(self):
+        weights = np.asarray(
+            [self.semantic_type_weights[name] for name in self.SEMANTIC_TYPES],
+            dtype=np.float64,
         )
-        
-        # 确保task_type是普通字符串，不是numpy字符串
-        task_type = str(task_type)
-        
-        # 生成数据大小
-        min_size, max_size = self.task_sizes[task_type]
-        data_size = random.uniform(min_size, max_size)
-        
-        # 计算CPU周期需求：C = ε * D
-        cpu_cycles = data_size * self.processing_density
-        
-        # 生成截止时间
+        if np.any(weights < 0) or weights.sum() <= 0:
+            raise ValueError("semantic_type_weights must be non-negative with positive sum")
+        weights = weights / weights.sum()
+        return str(np.random.choice(self.SEMANTIC_TYPES, p=weights))
+
+    def generate_single_task(
+        self,
+        task_id=0,
+        device_id=0,
+        arrival_time=None,
+    ):
+        """生成单个任务"""
+        if self.physics_version >= 2:
+            semantic_type = self._sample_semantic_type()
+            profile = self.semantic_profiles[semantic_type]
+            min_size, max_size = map(float, profile['data_range'])
+            data_size = random.uniform(min_size, max_size)
+            density = float(profile['processing_density'])
+            cpu_cycles = data_size * density
+            deadline_multiplier = float(profile['deadline_multiplier'])
+            output_ratio = (
+                self.output_ratio
+                if self.output_ratio_overridden
+                else float(profile.get('output_ratio', self.output_ratio))
+            )
+            if not 0.0 <= output_ratio <= 1.0:
+                raise ValueError(
+                    f"output_ratio for {semantic_type} must be between 0 and 1"
+                )
+            priority = int(profile.get('priority', 1))
+            task_type = semantic_type
+        else:
+            task_type = str(np.random.choice(
+                list(self.task_type_weights.keys()),
+                p=list(self.task_type_weights.values())
+            ))
+            min_size, max_size = self.task_sizes[task_type]
+            data_size = random.uniform(min_size, max_size)
+            cpu_cycles = data_size * self.processing_density
+            min_factor, max_factor = self.deadline_factors[task_type]
+            deadline_multiplier = random.uniform(min_factor, max_factor)
+            semantic_type = task_type
+            output_ratio = self.output_ratio
+            priority = 1
+
         if self.fixed_deadline_seconds is not None:
             deadline = self.fixed_deadline_seconds
         else:
             slowest_cpu_frequency = 0.5e9
             local_execution_time = cpu_cycles / slowest_cpu_frequency
-            min_factor, max_factor = self.deadline_factors[task_type]
-            deadline_factor = random.uniform(min_factor, max_factor)
-            deadline = local_execution_time * deadline_factor
-        
-        return {
+            deadline = local_execution_time * deadline_multiplier
+
+        if arrival_time is None:
+            arrival_time = float(self.current_step)
+
+        task = {
             'task_id': f"{device_id}_{self.current_step}_{task_id}",
             'device_id': device_id,
             'type': task_type,
             'data_size': data_size,       # 数据大小 (MB)
             'cpu_cycles': cpu_cycles,     # CPU周期需求 (cycles)
             'deadline': deadline,         # 截止时间 (秒)
-            'arrival_time': time.time()   # 到达时间戳
+            'arrival_time': float(arrival_time),
         }
+
+        # Phase 2 扩展字段
+        if self.physics_version >= 2:
+            task['semantic_type'] = semantic_type
+            task['output_ratio'] = output_ratio
+            task['priority'] = priority
+            task['arrival_slot'] = self.current_step
+
+        return task
     
-    def generate_poisson_tasks(self, num_devices, step=None):
+    def generate_poisson_tasks(self, num_devices, step=None, current_time=None):
         """
         使用泊松分布生成任务，支持时间模式
         
@@ -156,7 +265,11 @@ class TaskGenerator:
             if num_tasks > 0:
                 tasks = []
                 for i in range(num_tasks):
-                    task = self.generate_single_task(task_id=total_tasks+i, device_id=device_id)
+                    task = self.generate_single_task(
+                        task_id=total_tasks + i,
+                        device_id=device_id,
+                        arrival_time=current_time,
+                    )
                     tasks.append(task)
                 
                 device_tasks[device_id] = tasks
@@ -170,7 +283,7 @@ class TaskGenerator:
         
         return device_tasks
 
-    def generate_simple_tasks(self, num_devices, step=None):
+    def generate_simple_tasks(self, num_devices, step=None, current_time=None):
         """
         生成简化模式任务：
         - 每个设备必定生成1个任务
@@ -214,8 +327,20 @@ class TaskGenerator:
                 'data_size': data_size,  # 数据大小 (MB)
                 'cpu_cycles': cpu_cycles,  # CPU周期 (cycles)
                 'deadline': deadline,  # 最大执行时延 (秒)
-                'arrival_time': time.time()
+                'arrival_time': float(
+                    self.current_step if current_time is None else current_time
+                ),
             }
+
+            if self.physics_version >= 2:
+                task.update(
+                    {
+                        'semantic_type': 'control',
+                        'output_ratio': self.output_ratio,
+                        'priority': 3,
+                        'arrival_slot': self.current_step,
+                    }
+                )
 
             # 每个设备只有一个任务
             device_tasks[device_id] = [task]
@@ -315,8 +440,8 @@ class TaskGenerator:
 
 
 class Task:
-    """任务类 - 支持任务分割"""
-    
+    """任务类 — Phase 1 + Phase 2 双版本兼容。"""
+
     def __init__(self, task_data):
         """从任务数据初始化任务对象"""
         self.task_id = task_data.get('task_id', 0)
@@ -326,8 +451,16 @@ class Task:
         self.deadline = task_data.get('deadline', 10.0)
         self.device_id = task_data.get('device_id', 0)
         self.creation_step = 0  # 会在环境中设置
-        self.arrival_time = task_data.get('arrival_time', time.time())
-        
+        self.arrival_time = float(
+            task_data.get('arrival_time', task_data.get('arrival_slot', 0.0))
+        )
+
+        # Phase 2 扩展字段
+        self.semantic_type = task_data.get('semantic_type', task_data.get('type', 'medium'))
+        self.output_ratio = float(task_data.get('output_ratio', 0.1))
+        self.arrival_slot = task_data.get('arrival_slot', 0)
+        self.priority = int(task_data.get('priority', 1))
+
         # 任务分割比例 [α1, α2, α3] 其中 α1+α2+α3=1
         self.split_ratios = None
         
@@ -366,7 +499,7 @@ class Task:
     
     def to_dict(self):
         """转换为字典格式"""
-        return {
+        d = {
             'task_id': self.task_id,
             'type': self.task_type,
             'data_size_mb': self.task_data_size,
@@ -375,5 +508,11 @@ class Task:
             'split_ratios': self.split_ratios,
             'device_id': self.device_id,
             'creation_step': self.creation_step,
-            'arrival_time': self.arrival_time
+            'arrival_time': self.arrival_time,
         }
+        # Phase 2 字段
+        d['semantic_type'] = self.semantic_type
+        d['output_ratio'] = self.output_ratio
+        d['arrival_slot'] = self.arrival_slot
+        d['priority'] = self.priority
+        return d

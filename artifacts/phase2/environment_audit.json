@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "phase": "2",
+  "created_at": "2026-06-11T02:47:28.5634723Z",
+  "git_base_commit": "bc4d559",
+  "worktree_contains_reviewed_phase2_changes": true,
+  "checks": {
+    "phase2_tests_passed": true,
+    "full_test_suite_passed": true,
+    "phase1_gate_regression_passed": true,
+    "phase2_all_algorithms_started": true,
+    "phase2_all_runs_passed": true,
+    "phase2_all_metrics_finite": true,
+    "phase2_same_seed_training_reproducible": true,
+    "multiple_arrivals_preserved": true,
+    "simulation_time_only": true,
+    "release_times_respected": true,
+    "residual_slot_service_preserved": true,
+    "joint_contention_modeled": true,
+    "evaluator_matches_step": true,
+    "local_only_has_no_downlink": true,
+    "remote_compute_energy_included": true,
+    "snapshot_captures_distance_and_cloud_queue": true,
+    "phase1_physics_isolated": true
+  },
+  "tests": {
+    "phase2_environment_tests": 48,
+    "full_suite_tests": 59
+  },
+  "phase1_regression": {
+    "algorithms": [
+      "maddpg",
+      "legacy_maps",
+      "mappo",
+      "happo"
+    ],
+    "seeds": [
+      42,
+      43
+    ],
+    "runs": 8,
+    "gate_1_passed": true,
+    "same_seed_training_reproducible": true
+  },
+  "phase2_smoke": {
+    "algorithms": [
+      "maddpg",
+      "legacy_maps",
+      "mappo",
+      "happo"
+    ],
+    "seeds": [
+      42,
+      43
+    ],
+    "episodes_per_run": 20,
+    "steps_per_episode": 10,
+    "runs": 8,
+    "all_runs_passed": true,
+    "all_metrics_finite": true
+  },
+  "reproducibility_probe": {
+    "algorithm": "maddpg",
+    "seed": 42,
+    "episodes": 2,
+    "steps_per_episode": 5,
+    "episode_metrics_match": true,
+    "training_losses_match": true,
+    "max_abs_difference": 0.0
+  },
+  "limitations": [
+    "The wireless model currently uses static path loss and orthogonal access without sampled fast fading or interference.",
+    "UE and edge compute nodes use non-preemptive single-server FCFS queues; cloud parallelism is represented by an aggregate parallel_factor.",
+    "Deadline outcomes are computed from the deterministic admitted schedule rather than event callback completion logs.",
+    "The downlink reuses the configured path-loss model with a separate configurable transmit power.",
+    "Phase 2 smoke runs are engineering evidence and must not be reported as paper performance results.",
+    "The categorical edge-action redesign remains Phase 3 work."
+  ]
+}
