@@ -1,8 +1,22 @@
 # utils/config.py
+from pathlib import Path
+
 import yaml
+from dotenv import load_dotenv
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_project_env(env_path=None):
+    """Load local secrets without overriding explicit process variables."""
+    path = Path(env_path) if env_path is not None else PROJECT_ROOT / ".env"
+    return load_dotenv(dotenv_path=path, override=False)
+
 
 def load_config(config_path="config.yaml"):
     """加载配置文件"""
+    load_project_env()
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             loaded = yaml.safe_load(f) or {}

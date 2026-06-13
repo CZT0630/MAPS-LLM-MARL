@@ -10,12 +10,15 @@ Endpoint: /chat/completions
 Credential environment variable: MIMO_API_KEY
 ```
 
-The repository does not store API keys. Set a newly rotated key in the local
-PowerShell session before an API-backed run:
+The repository does not track API keys. Put a newly rotated key in the local
+project-root `.env` file:
 
-```powershell
-$env:MIMO_API_KEY = "<your-rotated-key>"
+```dotenv
+MIMO_API_KEY=<your-rotated-key>
 ```
+
+`load_config()` reads this file automatically. An explicitly defined process
+environment variable takes precedence over the `.env` value.
 
 Validate the endpoint with one minimal request:
 
