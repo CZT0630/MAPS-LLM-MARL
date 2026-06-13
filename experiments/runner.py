@@ -18,13 +18,14 @@ from LLM4RL.algos.happo.happo_agent import HAPPOAgent
 from LLM4RL.algos.maddpg.maddpg_agent import MADDPGAgent
 from LLM4RL.algos.maddpg.replay_buffer import JointReplayBuffer
 from LLM4RL.algos.mappo.mappo_agent import MAPPOAgent
+from LLM4RL.baselines.greedy_min_cost import GreedyMinCostAgent
 from LLM4RL.environment.cloud_edge_env import CloudEdgeDeviceEnv
 from LLM4RL.llm_assistant.expert_provider import FixedCacheExpertProvider
 from LLM4RL.utils.run_manifest import build_manifest, write_manifest
 from LLM4RL.utils.seed import set_global_seed
 
 
-SUPPORTED_ALGORITHMS = ("maddpg", "legacy_maps", "mappo", "happo")
+SUPPORTED_ALGORITHMS = ("maddpg", "legacy_maps", "mappo", "happo", "greedy_min_cost")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -430,6 +431,73 @@ def _run_on_policy(
     )
 
 
+def _run_greedy_min_cost(
+    config: dict[str, Any],
+    seed: int,
+    output_root: Path,
+    command: str,
+) -> dict[str, Any]:
+    set_global_seed(seed)
+    run_dir = _make_run_dir(output_root, "greedy_min_cost", seed)
+    manifest = build_manifest(PROJECT_ROOT, "greedy_min_cost", seed, config, command)
+    write_manifest(run_dir / "run_manifest.json", manifest)
+
+    env = CloudEdgeDeviceEnv(config)
+    reward_cfg = config.get("reward", {})
+    agent = GreedyMinCostAgent(
+        num_devices=env.num_devices,
+        num_edges=env.num_edges,
+        latency_weight=float(reward_cfg.get("latency_weight", 1.0)),
+        energy_weight=float(reward_cfg.get("energy_weight", 1.0)),
+    )
+
+    episodes_count = int(
+        config.get("greedy_min_cost", {}).get(
+            "max_episodes", config.get("training", {}).get("episodes", 20)
+        )
+    )
+    max_steps = int(
+        config.get("greedy_min_cost", {}).get("max_steps", 10)
+    )
+
+    episodes: list[dict[str, float]] = []
+    for episode in range(episodes_count):
+        _global_state, _ = env.reset(seed=seed + episode)
+        reward_steps: list[float] = []
+        latencies: list[float] = []
+        energies: list[float] = []
+        info: dict[str, Any] = {}
+
+        for _step in range(max_steps):
+            actions = agent.compute_action(env)
+            _obs, rewards, terminated, truncated, info = env.step(actions)
+            done = bool(terminated or truncated)
+
+            reward_steps.append(float(np.mean(rewards)))
+            latencies.append(float(np.mean(info.get("total_latencies", [0.0]))))
+            energies.append(float(np.mean(info.get("total_energies", [0.0]))))
+
+            if done:
+                break
+
+        episodes.append(
+            _episode_metrics(
+                reward_steps,
+                latencies,
+                energies,
+                info.get("task_completion_stats", {}),
+            )
+        )
+
+    return _finalize_run(
+        run_dir,
+        manifest,
+        episodes,
+        losses=[],  # no training
+        extra={"heuristic": True},
+    )
+
+
 def run_baseline(
     algorithm: str,
     config: dict[str, Any],
@@ -446,6 +514,8 @@ def run_baseline(
         output_root = PROJECT_ROOT / output_root
     output_root.mkdir(parents=True, exist_ok=True)
     command = command or " ".join(sys.argv)
+    if algorithm == "greedy_min_cost":
+        return _run_greedy_min_cost(config, seed, output_root, command)
     if algorithm in ("maddpg", "legacy_maps"):
         return _run_maddpg_family(algorithm, config, seed, output_root, command)
     return _run_on_policy(algorithm, config, seed, output_root, command)

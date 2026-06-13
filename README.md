@@ -50,9 +50,10 @@ python -m LLM4RL.main --help
 
 ## 关键文件
 
-- `docs/MAPS_REDEVELOPMENT_PLAN.md`：完整研究与实现路线。
+- `docs/EI_SUBMISSION_MASTER_PLAN.md`：EI 代码、实验和论文修改的唯一执行方案。
 - `docs/PHASE1_BASELINE_AUDIT.md`：Phase 0–1 完成记录和边界。
 - `docs/PHASE2_IMPLEMENTATION.md`：Phase 2 实现记录和 Gate 2 检查清单。
+- `docs/MIMO_API_SETUP.md`：MiMo API、`.env` 和本地验证方法。
 - `legacy/PHASE0_MANIFEST.md`：冻结归档及校验值。
 - `configs/smoke.yaml`：Phase 1 最小配置。
 - `configs/smoke_phase2.yaml`：Phase 2 最小配置。
@@ -65,14 +66,12 @@ python -m LLM4RL.main --help
 ## 投稿路线
 
 - `master`：Phase 0-2 公共可信基线。
-- `publication/letter-revision`：执行 `docs/MAPS_REDEVELOPMENT_PLAN.md` 中的完整 Letter 增强路线。
-- `publication/ei-conference`：执行 `docs/EI_CONFERENCE_REVISION_PLAN.md` 中的低成本 EI 会议修改路线。
+- `publication/ei-conference`：执行 `docs/EI_SUBMISSION_MASTER_PLAN.md`。
 
-EI 论文的最终 baseline、场景、指标、图表和删减项见
-`docs/EI_FINAL_EXPERIMENT_PRESENTATION.md`。当前 EI 分支的下一步是修复
-混合动作表示、实现 mixed distillation 与退火消融，并建立正式论文指标和
-实验配置。完成这些工作前，`legacy_maps` 只用于工程 smoke test，不能作为
-论文结果。
+该主文档是 EI 路线的唯一方案，统一定义代码修改顺序、baseline、场景、指标、
+图表和论文逐节修改要求。当前下一步是修复混合动作表示，再实现 mixed
+distillation、退火、正式指标和 scenario bank。完成这些工作前，
+`legacy_maps` 只用于工程 smoke test，不能作为论文结果。
 
-小米 MiMo-V2.5 的无密钥配置和本地 API 验证方法见
+MiMo API 的无密钥配置和本地验证方法见
 `docs/MIMO_API_SETUP.md`。

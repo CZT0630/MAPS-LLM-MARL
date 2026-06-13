@@ -1,6 +1,6 @@
 """Phase 2 环境测试 — Gate 2 验证
 
-测试覆盖 MAPS_REDEVELOPMENT_PLAN.md 中 Phase 2 的所有测试要求：
+测试覆盖 Phase 2 的所有测试要求：
   - 无到达时队列不增长
   - 服务量大于队列时队列不为负
   - 增大带宽时传输时延单调下降
