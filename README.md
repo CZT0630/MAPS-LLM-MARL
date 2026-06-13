@@ -14,8 +14,10 @@
 - Gate 1 已通过，证据见 `artifacts/phase1/baseline_audit.json`。
 - Gate 2 已通过，证据见 `artifacts/phase2/environment_audit.json`。
 - Phase 2 使用独立的 `environment.physics_version: 2`，不再与结果格式版本混用。
+- **C1 已完成**：策略/回放统一使用 `[partition_probs, edge_probs]`；MADDPG
+  使用双 softmax，MAPPO/HAPPO 使用 softmax 均值的 simplex 分布与 categorical ES head。
 
-Phase 1 仅证明基线可运行、可复现，不代表论文方法或性能结论已经成立。Phase 2 修复了环境物理模型，但尚未用于正式论文实验。
+Phase 1 仅证明基线可运行、可复现，不代表论文方法或性能结论已经成立。Phase 2 修复了环境物理模型，但尚未用于正式论文实验。C1 完成了混合动作表示，下一步是 C2 mixed distillation 与退火。
 
 ## 快速开始
 
@@ -69,9 +71,9 @@ python -m LLM4RL.main --help
 - `publication/ei-conference`：执行 `docs/EI_SUBMISSION_MASTER_PLAN.md`。
 
 该主文档是 EI 路线的唯一方案，统一定义代码修改顺序、baseline、场景、指标、
-图表和论文逐节修改要求。当前下一步是修复混合动作表示，再实现 mixed
-distillation、退火、正式指标和 scenario bank。完成这些工作前，
-`legacy_maps` 只用于工程 smoke test，不能作为论文结果。
+图表和论文逐节修改要求。C1 混合动作 codec 已完成，当前下一步是实现 C2
+mixed distillation 与退火，再完成 C3 真实 LLM 专家、C4 指标和 C5 scenario bank。
+完成这些工作前，`legacy_maps` 只用于工程 smoke test，不能作为论文结果。
 
 MiMo API 的无密钥配置和本地验证方法见
 `docs/MIMO_API_SETUP.md`。

@@ -13,6 +13,7 @@ from typing import Any
 import numpy as np
 import torch
 
+from LLM4RL.algos.common.hybrid_action import HybridActionCodec
 from LLM4RL.algos.common.trajectory_buffer import TrajectoryBuffer
 from LLM4RL.algos.happo.happo_agent import HAPPOAgent
 from LLM4RL.algos.maddpg.maddpg_agent import MADDPGAgent
@@ -41,13 +42,6 @@ def _local_states(env: CloudEdgeDeviceEnv, global_state) -> np.ndarray:
         [env.extract_agent_state(global_state, i) for i in range(env.num_devices)],
         dtype=np.float32,
     )
-
-
-def _decode_continuous_actions(policy_actions: np.ndarray, num_edges: int) -> np.ndarray:
-    actions = np.asarray(policy_actions, dtype=np.float32).copy()
-    edge_ids = np.floor(actions[:, 3] * num_edges).astype(np.int64)
-    actions[:, 3] = np.clip(edge_ids, 0, num_edges - 1)
-    return actions
 
 
 def _episode_metrics(
@@ -117,8 +111,11 @@ def _run_maddpg_family(
     write_manifest(run_dir / "run_manifest.json", manifest)
 
     env = CloudEdgeDeviceEnv(config)
+    num_edges = env.num_edges
+    codec = HybridActionCodec(num_edges)
     state_dim = env.get_agent_state_dim()
-    action_dim = env.action_space.shape[0]
+    # action_dim is now 3 + num_edges (hybrid action)
+    action_dim = codec.action_dim
     num_agents = env.num_devices
     base_cfg = copy.deepcopy(config.get("maddpg", {}))
     algorithm_cfg = copy.deepcopy(base_cfg)
@@ -135,7 +132,7 @@ def _run_maddpg_family(
         expert_provider = FixedCacheExpertProvider(
             cache_path=cache_path,
             num_agents=num_agents,
-            num_edges=env.num_edges,
+            num_edges=num_edges,
         )
 
     agents = [
@@ -144,12 +141,15 @@ def _run_maddpg_family(
             action_dim=action_dim,
             num_agents=num_agents,
             agent_idx=index,
-            num_edges=env.num_edges,
+            num_edges=num_edges,
             config=algorithm_cfg,
         )
         for index in range(num_agents)
     ]
-    replay = JointReplayBuffer(int(algorithm_cfg.get("buffer_size", 100000)))
+    replay = JointReplayBuffer(
+        int(algorithm_cfg.get("buffer_size", 100000)),
+        num_edges=num_edges,
+    )
     episodes_count = int(
         algorithm_cfg.get(
             "max_episodes", config.get("training", {}).get("episodes", 20)
@@ -175,6 +175,7 @@ def _run_maddpg_family(
         for step in range(max_steps):
             global_step += 1
             states = _local_states(env, global_state)
+            # Policy actions are probabilities [3+E] per agent
             policy_actions = np.asarray(
                 [
                     agent.select_action(
@@ -185,13 +186,8 @@ def _run_maddpg_family(
                 ],
                 dtype=np.float32,
             )
-            env_actions = np.asarray(
-                [
-                    agent.policy_to_env_action(policy_actions[index])
-                    for index, agent in enumerate(agents)
-                ],
-                dtype=np.float32,
-            )
+            # Convert to env actions [a1, a2, a3, edge_id]
+            env_actions = codec.batch_policy_to_env_actions(policy_actions)
 
             expert_actions = None
             expert_mask = None
@@ -285,6 +281,9 @@ def _run_maddpg_family(
             "joint_replay": True,
             "centralized_critic": True,
             "expert": expert_metadata,
+            "hybrid_action": True,
+            "num_edges": num_edges,
+            "action_dim": action_dim,
         },
     )
 
@@ -302,9 +301,11 @@ def _run_on_policy(
     write_manifest(run_dir / "run_manifest.json", manifest)
 
     env = CloudEdgeDeviceEnv(config)
+    num_edges = env.num_edges
+    codec = HybridActionCodec(num_edges)
     state_dim = env.get_agent_state_dim()
     global_state_dim = env.observation_space.shape[0]
-    action_dim = env.action_space.shape[0]
+    action_dim = codec.action_dim  # 3 + num_edges
     num_agents = env.num_devices
     algorithm_cfg = copy.deepcopy(config.get(algorithm, {}))
     agent_class = MAPPOAgent if algorithm == "mappo" else HAPPOAgent
@@ -314,6 +315,7 @@ def _run_on_policy(
             action_dim=action_dim,
             global_state_dim=global_state_dim,
             agent_idx=index,
+            num_edges=num_edges,
             config=algorithm_cfg,
         )
         for index in range(num_agents)
@@ -342,9 +344,8 @@ def _run_on_policy(
                 policy_actions.append(action)
                 pending.append((index, state, action, action_info))
             policy_actions_array = np.asarray(policy_actions, dtype=np.float32)
-            env_actions = _decode_continuous_actions(
-                policy_actions_array, env.num_edges
-            )
+            # Convert hybrid policy actions to env actions
+            env_actions = codec.batch_policy_to_env_actions(policy_actions_array)
             next_global_state, rewards, terminated, truncated, info = env.step(
                 env_actions
             )
@@ -360,8 +361,8 @@ def _run_on_policy(
                     float(done),
                     action_info["log_prob"],
                     action_info["value"],
-                    action_info["alpha"],
-                    action_info["beta"],
+                    action_info["partition_params"],
+                    action_info["edge_logits"],
                 )
 
             has_task = info.get("has_task_list", [True] * num_agents)
@@ -427,7 +428,11 @@ def _run_on_policy(
         manifest,
         episodes,
         losses,
-        extra={"continuous_edge_selector": True, "phase3_replacement_required": True},
+        extra={
+            "hybrid_action": True,
+            "num_edges": num_edges,
+            "action_dim": action_dim,
+        },
     )
 
 
@@ -443,10 +448,12 @@ def _run_greedy_min_cost(
     write_manifest(run_dir / "run_manifest.json", manifest)
 
     env = CloudEdgeDeviceEnv(config)
+    num_edges = env.num_edges
+    codec = HybridActionCodec(num_edges)
     reward_cfg = config.get("reward", {})
     agent = GreedyMinCostAgent(
         num_devices=env.num_devices,
-        num_edges=env.num_edges,
+        num_edges=num_edges,
         latency_weight=float(reward_cfg.get("latency_weight", 1.0)),
         energy_weight=float(reward_cfg.get("energy_weight", 1.0)),
     )
@@ -469,8 +476,10 @@ def _run_greedy_min_cost(
         info: dict[str, Any] = {}
 
         for _step in range(max_steps):
-            actions = agent.compute_action(env)
-            _obs, rewards, terminated, truncated, info = env.step(actions)
+            # GreedyMinCost now returns [N, 3+E] hybrid actions
+            hybrid_actions = agent.compute_action(env)
+            env_actions = codec.batch_policy_to_env_actions(hybrid_actions)
+            _obs, rewards, terminated, truncated, info = env.step(env_actions)
             done = bool(terminated or truncated)
 
             reward_steps.append(float(np.mean(rewards)))
@@ -494,7 +503,7 @@ def _run_greedy_min_cost(
         manifest,
         episodes,
         losses=[],  # no training
-        extra={"heuristic": True},
+        extra={"heuristic": True, "hybrid_action": True, "num_edges": num_edges},
     )
 
 
@@ -677,7 +686,7 @@ def run_phase1_audit(
         "limitations": [
             "The fixed expert cache is synthetic and is only for engineering validation.",
             "The Phase 1 environment still uses the legacy simplified physical model.",
-            "MAPPO and HAPPO still use the legacy continuous edge selector until Phase 3.",
+            "Hybrid action codec is now active for all algorithms.",
         ],
     }
     audit_path = Path(audit_path)

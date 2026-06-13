@@ -15,11 +15,12 @@ class TrajectoryBuffer:
             'dones': [],
             'log_probs': [],
             'values': [],
-            'alpha': [],
-            'beta': [],
+            'partition_params': [],
+            'edge_logits': [],
         }
 
-    def add(self, agent_id, state, global_state, action, reward, done, log_prob, value, alpha, beta):
+    def add(self, agent_id, state, global_state, action, reward, done,
+            log_prob, value, partition_params, edge_logits):
         b = self.buffers[agent_id]
         b['states'].append(state)
         b['global_states'].append(global_state)
@@ -28,8 +29,8 @@ class TrajectoryBuffer:
         b['dones'].append(done)
         b['log_probs'].append(log_prob)
         b['values'].append(value)
-        b['alpha'].append(alpha)
-        b['beta'].append(beta)
+        b['partition_params'].append(partition_params)
+        b['edge_logits'].append(edge_logits)
 
     def compute_advantages(self, gamma=0.99, lam=0.95):
         for b in self.buffers:
@@ -59,8 +60,10 @@ class TrajectoryBuffer:
             'values': np.array(b['values'], dtype=np.float32),
             'returns': np.array(b['returns'], dtype=np.float32),
             'advantages': np.array(b['advantages'], dtype=np.float32),
-            'alpha': np.array(b['alpha'], dtype=np.float32),
-            'beta': np.array(b['beta'], dtype=np.float32),
+            'partition_params': np.array(
+                b['partition_params'], dtype=np.float32
+            ),
+            'edge_logits': np.array(b['edge_logits'], dtype=np.float32),
         }
 
     def clear(self):

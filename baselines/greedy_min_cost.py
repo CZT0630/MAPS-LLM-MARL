@@ -76,19 +76,25 @@ class GreedyMinCostAgent:
     ) -> np.ndarray:
         """Compute joint action for the current environment step.
 
-        Parameters
-        ----------
-        env : CloudEdgeDeviceEnv
-            Environment (Phase 1).  Read-only; no state mutation.
-
         Returns
         -------
         np.ndarray
-            Joint action of shape ``(num_devices, 4)``.
+            Joint action of shape ``(num_devices, 3 + num_edges)``.
+            First 3 cols: partition ratios.
+            Last num_edges cols: one-hot edge server selection.
         """
         tasks = env.current_tasks
+        action_dim = 3 + self.num_edges
+        joint_action = np.zeros((self.num_devices, action_dim), dtype=np.float32)
+        # Default: all local, edge 0.
+        for i in range(self.num_devices):
+            joint_action[i] = (
+                [1.0, 0.0, 0.0]
+                + [1.0]
+                + [0.0] * (self.num_edges - 1)
+            )
         if tasks is None:
-            return np.zeros((self.num_devices, 4), dtype=np.float32)
+            return joint_action
 
         # Build (ue_idx, deadline_slack) for active UEs.
         slack_list: list[tuple[int, float]] = []
@@ -100,18 +106,14 @@ class GreedyMinCostAgent:
         # Most urgent first.
         slack_list.sort(key=lambda x: x[1])
 
-        joint_action = np.zeros((self.num_devices, 4), dtype=np.float32)
-        # Default: all local.
-        for i in range(self.num_devices):
-            joint_action[i] = [1.0, 0.0, 0.0, 0.0]
-
         cloud_server = env.cloud_servers[0]
 
         for ue_idx, _slack in slack_list:
             task = tasks[ue_idx]
             ue = env.user_equipments[ue_idx]
             best_cost = float("inf")
-            best_action = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
+            best_partition = [1.0, 0.0, 0.0]
+            best_edge_id = 0
 
             for alpha1, alpha2, alpha3 in self.templates:
                 for edge_id in range(self.num_edges):
@@ -121,12 +123,13 @@ class GreedyMinCostAgent:
                     )
                     if cost < best_cost:
                         best_cost = cost
-                        best_action = np.array(
-                            [alpha1, alpha2, alpha3, float(edge_id)],
-                            dtype=np.float32,
-                        )
+                        best_partition = [alpha1, alpha2, alpha3]
+                        best_edge_id = edge_id
 
-            joint_action[ue_idx] = best_action
+            # Build one-hot edge vector
+            edge_onehot = [0.0] * self.num_edges
+            edge_onehot[best_edge_id] = 1.0
+            joint_action[ue_idx] = best_partition + edge_onehot
 
         return joint_action
 

@@ -7,12 +7,17 @@ from collections import deque
 
 import numpy as np
 
+from ..common.hybrid_action import HybridActionCodec
+
 
 class JointReplayBuffer:
-    def __init__(self, capacity: int):
+    def __init__(self, capacity: int, num_edges: int | None = None):
         self.buffer = deque(maxlen=int(capacity))
         self._state_shape: tuple[int, ...] | None = None
         self._action_shape: tuple[int, ...] | None = None
+        self.codec = (
+            HybridActionCodec(num_edges) if num_edges is not None else None
+        )
 
     def add(
         self,
@@ -43,6 +48,9 @@ class JointReplayBuffer:
             )
         if actions.shape[0] != states.shape[0]:
             raise ValueError("state and action agent counts differ")
+        if self.codec is None:
+            self.codec = HybridActionCodec(actions.shape[1] - 3)
+        self.codec.batch_policy_to_env_actions(actions)
 
         if self._state_shape is None:
             self._state_shape = states.shape
@@ -55,6 +63,10 @@ class JointReplayBuffer:
             )
 
         if expert_actions is None:
+            if expert_mask is not None:
+                raise ValueError(
+                    "expert_mask cannot be provided without expert_actions"
+                )
             expert_actions_array = np.zeros_like(actions)
             expert_mask_array = np.zeros(states.shape[0], dtype=np.float32)
         else:
@@ -64,6 +76,7 @@ class JointReplayBuffer:
                     f"expert_actions shape {expert_actions_array.shape} "
                     f"does not match actions {actions.shape}"
                 )
+            self.codec.batch_policy_to_env_actions(expert_actions_array)
             if expert_mask is None:
                 expert_mask_array = np.ones(states.shape[0], dtype=np.float32)
             else:

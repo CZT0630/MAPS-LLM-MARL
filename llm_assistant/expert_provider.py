@@ -8,11 +8,16 @@ from pathlib import Path
 
 import numpy as np
 
+from LLM4RL.algos.common.hybrid_action import HybridActionCodec
+
 from .response_parser import ParseMetadata, ResponseParser
 
 
 @dataclass(frozen=True)
 class ExpertBatch:
+    # policy_actions: shape (num_agents, 3+E)
+    #   First 3 cols: partition ratios (local, edge, cloud)
+    #   Last E cols: one-hot edge server selection
     policy_actions: np.ndarray
     valid_mask: np.ndarray
     metadata: dict
@@ -25,6 +30,7 @@ class FixedCacheExpertProvider:
         self.cache_path = Path(cache_path)
         self.num_agents = int(num_agents)
         self.num_edges = int(num_edges)
+        self.codec = HybridActionCodec(self.num_edges)
         payload = json.loads(self.cache_path.read_text(encoding="utf-8"))
         self.source = payload.get("source", "unknown_cache")
         self.paper_evidence = bool(payload.get("paper_evidence", False))
@@ -39,15 +45,13 @@ class FixedCacheExpertProvider:
         del episode, step
         actions = []
         for strategy in self.strategies:
-            denominator = max(self.num_edges - 1, 1)
-            actions.append(
-                [
-                    strategy["local_ratio"],
-                    strategy["edge_ratio"],
-                    strategy["cloud_ratio"],
-                    strategy["target_edge"] / denominator,
-                ]
-            )
+            env_action = [
+                strategy["local_ratio"],
+                strategy["edge_ratio"],
+                strategy["cloud_ratio"],
+                strategy["target_edge"],
+            ]
+            actions.append(self.codec.env_to_policy_action(env_action))
         valid = self.parse_metadata.valid
         return ExpertBatch(
             policy_actions=np.asarray(actions, dtype=np.float32),

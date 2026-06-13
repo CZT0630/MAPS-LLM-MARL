@@ -1,32 +1,52 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.distributions import Beta
+from torch.distributions import Categorical, Dirichlet
+
+from ..common.hybrid_action import HybridActionCodec
 
 
 class HAPPOActor(nn.Module):
-    def __init__(self, state_dim, action_dim):
+    """Hybrid-action HAPPO actor (Dirichlet partition + categorical edge)."""
+
+    def __init__(self, state_dim, num_edges, partition_concentration=10.0):
         super().__init__()
+        self.num_edges = int(num_edges)
+        if self.num_edges < 1:
+            raise ValueError(f"num_edges must be >= 1, got {num_edges}")
+        self.codec = HybridActionCodec(self.num_edges)
+        self.partition_concentration = float(partition_concentration)
+        if self.partition_concentration <= 0:
+            raise ValueError("partition_concentration must be positive")
         self.encoder = nn.Sequential(
             nn.Linear(state_dim, 256),
             nn.ReLU(),
             nn.Linear(256, 128),
             nn.ReLU(),
         )
-        self.out = nn.Linear(128, action_dim * 2)
+        self.partition_head = nn.Linear(128, 3)
+        self.edge_head = nn.Linear(128, self.num_edges)
 
     def forward(self, state):
         x = self.encoder(state)
-        params = self.out(x)
-        alpha_raw, beta_raw = torch.chunk(params, 2, dim=-1)
-        alpha = F.softplus(alpha_raw) + 1.0
-        beta = F.softplus(beta_raw) + 1.0
-        return alpha, beta
+        partition_logits = self.partition_head(x)
+        edge_logits = self.edge_head(x)
+        return partition_logits, edge_logits
 
     def get_dist(self, state):
-        alpha, beta = self.forward(state)
-        dist = Beta(alpha, beta)
-        return dist, alpha, beta
+        partition_logits, edge_logits = self.forward(state)
+        concentration = self.codec.partition_concentration_from_logits(
+            partition_logits,
+            self.partition_concentration,
+        )
+        part_dist = Dirichlet(concentration)
+        edge_dist = Categorical(logits=edge_logits)
+        return (
+            part_dist,
+            edge_dist,
+            partition_logits,
+            edge_logits,
+            concentration,
+        )
 
 
 class HAPPOCritic(nn.Module):
@@ -42,15 +62,3 @@ class HAPPOCritic(nn.Module):
 
     def forward(self, global_state):
         return self.v(global_state)
-
-
-def beta_kl_divergence(alpha_old, beta_old, alpha_new, beta_new):
-    t1 = torch.lgamma(alpha_new) + torch.lgamma(beta_new) - torch.lgamma(alpha_new + beta_new)
-    t2 = -(torch.lgamma(alpha_old) + torch.lgamma(beta_old) - torch.lgamma(alpha_old + beta_old))
-    psi_sum_old = torch.digamma(alpha_old + beta_old)
-    psi_sum_new = torch.digamma(alpha_new + beta_new)
-    t3 = (alpha_old - alpha_new) * (torch.digamma(alpha_old) - psi_sum_old)
-    t4 = (beta_old - beta_new) * (torch.digamma(beta_old) - psi_sum_old)
-    t5 = (alpha_new + beta_new - alpha_old - beta_old) * (psi_sum_new - (torch.digamma(alpha_new) + torch.digamma(beta_new)))
-    kl = t1 + t2 + t3 + t4 + t5
-    return kl.sum(dim=-1)

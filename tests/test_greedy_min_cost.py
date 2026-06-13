@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from LLM4RL.algos.common.hybrid_action import HybridActionCodec
 from LLM4RL.baselines.greedy_min_cost import GreedyMinCostAgent, PARTITION_TEMPLATES
 from LLM4RL.environment.cloud_edge_env import CloudEdgeDeviceEnv
 
@@ -43,7 +44,8 @@ class TestGreedyMinCostAgentShape:
         agent = GreedyMinCostAgent(num_devices=5, num_edges=2)
         action = agent.compute_action(env)
 
-        assert action.shape == (5, 4)
+        # New hybrid format: [partition(3) + edge_onehot(E)]
+        assert action.shape == (5, 3 + 2)
         assert action.dtype == np.float32
 
     def test_action_shape_single_device(self):
@@ -54,7 +56,7 @@ class TestGreedyMinCostAgentShape:
         agent = GreedyMinCostAgent(num_devices=1, num_edges=3)
         action = agent.compute_action(env)
 
-        assert action.shape == (1, 4)
+        assert action.shape == (1, 3 + 3)
 
     def test_no_tasks_returns_zero(self):
         config = _make_config(num_devices=3, num_edges=2)
@@ -66,11 +68,18 @@ class TestGreedyMinCostAgentShape:
         agent = GreedyMinCostAgent(num_devices=3, num_edges=2)
         action = agent.compute_action(env)
 
-        np.testing.assert_array_equal(action, np.zeros((3, 4), dtype=np.float32))
+        assert action.shape == (3, 3 + 2)
+        np.testing.assert_array_equal(
+            action,
+            np.tile(
+                np.array([1.0, 0.0, 0.0, 1.0, 0.0], dtype=np.float32),
+                (3, 1),
+            ),
+        )
 
 
 class TestGreedyMinCostAgentValues:
-    """Check that returned actions are valid partition ratios and edge ids."""
+    """Check that returned actions are valid partition ratios and one-hot edge."""
 
     def test_partition_ratios_sum_to_one(self):
         config = _make_config(num_devices=4, num_edges=2)
@@ -83,10 +92,9 @@ class TestGreedyMinCostAgentValues:
         for i in range(4):
             ratios = action[i, :3]
             total = ratios.sum()
-            # Templates sum to 1.0 (or 0 for no-task default which is [1,0,0]).
             assert abs(total - 1.0) < 1e-5 or total == pytest.approx(1.0, abs=1e-5)
 
-    def test_edge_id_in_range(self):
+    def test_edge_onehot_valid(self):
         config = _make_config(num_devices=4, num_edges=3)
         env = CloudEdgeDeviceEnv(config)
         env.reset(seed=99)
@@ -95,7 +103,11 @@ class TestGreedyMinCostAgentValues:
         action = agent.compute_action(env)
 
         for i in range(4):
-            edge_id = int(action[i, 3])
+            edge_onehot = action[i, 3:]
+            # Exactly one element should be 1.0, rest 0.0
+            assert edge_onehot.sum() == pytest.approx(1.0)
+            assert edge_onehot.max() == pytest.approx(1.0)
+            edge_id = int(np.argmax(edge_onehot))
             assert 0 <= edge_id < 3
 
     def test_ratios_non_negative(self):
@@ -118,11 +130,13 @@ class TestGreedyMinCostAgentEnvStep:
         env = CloudEdgeDeviceEnv(config)
         env.reset(seed=42)
 
+        codec = HybridActionCodec(2)
         agent = GreedyMinCostAgent(num_devices=3, num_edges=2)
 
         for step in range(5):
-            action = agent.compute_action(env)
-            obs, rewards, terminated, truncated, info = env.step(action)
+            hybrid_action = agent.compute_action(env)
+            env_action = codec.batch_policy_to_env_actions(hybrid_action)
+            obs, rewards, terminated, truncated, info = env.step(env_action)
             done = bool(terminated or truncated)
             if done:
                 break
@@ -135,9 +149,11 @@ class TestGreedyMinCostAgentEnvStep:
         env = CloudEdgeDeviceEnv(config)
         env.reset(seed=0)
 
+        codec = HybridActionCodec(2)
         agent = GreedyMinCostAgent(num_devices=3, num_edges=2)
-        action = agent.compute_action(env)
-        _obs, rewards, _term, _trunc, _info = env.step(action)
+        hybrid_action = agent.compute_action(env)
+        env_action = codec.batch_policy_to_env_actions(hybrid_action)
+        _obs, rewards, _term, _trunc, _info = env.step(env_action)
 
         assert np.all(np.isfinite(rewards))
 
@@ -214,3 +230,31 @@ class TestTemplates:
 
     def test_has_all_cloud(self):
         assert (0.0, 0.0, 1.0) in PARTITION_TEMPLATES
+
+
+class TestHybridActionCodec:
+    """Test the codec round-trip used by Greedy-MinCost."""
+
+    def test_codec_round_trip(self):
+        codec = HybridActionCodec(num_edges=3)
+        # Simulate a greedy action: partition (0.5, 0.3, 0.2), edge 1
+        partition = np.array([0.5, 0.3, 0.2], dtype=np.float32)
+        edge_onehot = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+        hybrid = np.concatenate([partition, edge_onehot])
+
+        env_action = codec.policy_to_env_action(hybrid)
+        assert env_action[0] == pytest.approx(0.5)
+        assert env_action[1] == pytest.approx(0.3)
+        assert env_action[2] == pytest.approx(0.2)
+        assert env_action[3] == pytest.approx(1.0)  # edge_id
+
+    def test_batch_conversion(self):
+        codec = HybridActionCodec(num_edges=2)
+        actions = np.array([
+            [0.5, 0.3, 0.2, 1.0, 0.0],  # edge 0
+            [0.1, 0.8, 0.1, 0.0, 1.0],  # edge 1
+        ], dtype=np.float32)
+        env_actions = codec.batch_policy_to_env_actions(actions)
+        assert env_actions.shape == (2, 4)
+        assert env_actions[0, 3] == pytest.approx(0.0)  # argmax of [1,0]
+        assert env_actions[1, 3] == pytest.approx(1.0)  # argmax of [0,1]

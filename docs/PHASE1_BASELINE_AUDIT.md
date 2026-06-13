@@ -44,7 +44,8 @@ Phase 0–1 已完成，Gate 1 通过。当前代码具备继续开展 Phase 2 �
 
 - 固定专家缓存是合成工程夹具，`paper_evidence=false`。
 - 环境仍是旧版简化模型，尚未修复标准队列演化和链路能耗。
-- MAPPO/HAPPO 暂时沿用连续 edge selector，Phase 3 需要改为混合动作分布。
+- 本审计完成时 MAPPO/HAPPO 仍沿用连续 edge selector；该历史限制已在
+  2026-06-13 的 EI C1 混合动作改造中消除。
 - 当前 completion rate 等数值只用于发现 NaN、shape error 和空输出，不用于比较算法优劣。
 
 下一步严格进入 Phase 2，先修系统模型，再开展任何论文主实验。

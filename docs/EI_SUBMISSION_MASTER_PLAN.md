@@ -98,8 +98,8 @@ EI 版本不重构为 Letter 路线，也不追求新的通用 LLM-RL 理论。�
 ### 4.2 已实现但不能直接作为论文结果
 
 - `legacy_maps` 仍使用合成固定专家缓存。
-- 现有 MADDPG/MAPPO 的 ES 选择仍是连续 scalar 语义。
-- 当前蒸馏仍把 partition 和 edge selector 统一当作连续 MSE。
+- C1 已统一为 `3+E` 策略动作，但正式实验和冻结场景尚未开始。
+- mixed distillation 的损失函数已接入 MADDPG；C2 的分项记录、权重配置和退火仍未完成。
 - 当前 `distill_weight` 是固定值，没有论文所需的退火。
 - 当前指标主要用于 smoke test，尚未完整输出 P95、DVR、TCR、AUC 和 threshold。
 - 当前训练与测试尚未使用冻结 scenario bank。
@@ -108,10 +108,10 @@ EI 版本不重构为 Letter 路线，也不追求新的通用 LLM-RL 理论。�
 
 | 工作 | 状态 | 正式实验前是否必须 |
 |---|---|---:|
-| Hybrid action codec | pending | yes |
-| MADDPG mixed-action actor/critic/replay | pending | yes |
-| MAPPO categorical ES head | pending | yes |
-| Partition MSE + edge CE | pending | yes |
+| Hybrid action codec | **done** | yes |
+| MADDPG mixed-action actor/critic/replay | **done** | yes |
+| MAPPO categorical ES head | **done** | yes |
+| Partition MSE + edge CE | partial：loss 已实现，C2 记录/配置待完成 | yes |
 | Fixed/annealed/no-LLM 三种 MAPS 配置 | pending | yes |
 | 真实 state-keyed expert cache | pending | yes |
 | LLM-only evaluator | pending | yes |
@@ -212,6 +212,37 @@ experiments/runner.py
 - 不再出现连续 edge scalar 乘 ES 数量后取整。
 - codec round-trip、shape、mask、invalid action 和 actor gradient 测试通过。
 - MADDPG 与 MAPPO 可在 Phase 2 环境完成短训练。
+
+**C1 完成记录（2026-06-13）：**
+
+已修改文件：
+
+```text
+algos/common/hybrid_action.py          (新建: HybridActionCodec)
+algos/maddpg/maddpg_actor_critic.py    (Actor 输出 3+E, Critic 接收 3+E)
+algos/maddpg/maddpg_agent.py           (logit 噪声, codec 边界, 混合蒸馏)
+algos/mappo/mappo_policy.py            (Dirichlet simplex + Categorical edge)
+algos/mappo/mappo_agent.py             (输出 [3+E], PPO 混合 log-prob)
+algos/happo/happo_policy.py            (同步使用 simplex + categorical)
+algos/happo/happo_agent.py             (同步更新)
+algos/common/trajectory_buffer.py      (存储 partition 参数与 edge logits)
+baselines/greedy_min_cost.py           (输出 [N, 3+E] one-hot)
+experiments/runner.py                  (统一 codec 转换)
+llm_assistant/expert_provider.py        (专家动作经统一 codec 转换)
+tests/test_hybrid_action.py            (codec、3/5/10 ES、梯度和回归测试)
+tests/test_greedy_min_cost.py          (适配新 action 格式)
+tests/test_maddpg_agent.py             (适配新 action 格式)
+tests/test_replay_buffer.py            (适配新 action 格式)
+```
+
+验证结果：
+
+- 135/135 测试通过。
+- Phase 1 smoke（5 算法）全部通过。
+- Phase 2 短训练（MADDPG、MAPPO）通过；同步 HAPPO/Legacy MAPS smoke 也通过。
+- 无连续 edge scalar 取整；环境边界只使用 `argmax(edge_probs)`。
+- codec round-trip、shape、3/5/10 ES 真实训练更新、mask、invalid action、
+  replay 数据完整性、极端 logits 和 actor gradient 测试通过。
 
 ### C2：实现 mixed distillation 与退火
 

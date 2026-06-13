@@ -10,6 +10,7 @@ import torch.nn.functional as F
 
 from .maddpg_actor_critic import Actor, Critic
 from .noise import OUNoise
+from ..common.hybrid_action import HybridActionCodec
 
 
 class MADDPGAgent:
@@ -26,10 +27,16 @@ class MADDPGAgent:
         config = config or {}
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.state_dim = int(state_dim)
-        self.action_dim = int(action_dim)
         self.num_agents = int(num_agents)
         self.agent_idx = int(agent_idx)
         self.num_edges = int(num_edges)
+        self.codec = HybridActionCodec(self.num_edges)
+        self.action_dim = self.codec.action_dim
+        if int(action_dim) != self.action_dim:
+            raise ValueError(
+                f"action_dim must be 3 + num_edges = {self.action_dim}, "
+                f"got {action_dim}"
+            )
         self.gamma = float(kwargs.get("gamma", config.get("gamma", 0.99)))
         self.tau = float(kwargs.get("tau", config.get("tau", 0.01)))
         self.lr_actor = float(kwargs.get("lr_actor", config.get("lr_actor", 3e-4)))
@@ -37,14 +44,17 @@ class MADDPGAgent:
         self.distill_weight = float(
             kwargs.get("distill_weight", config.get("distill_weight", 0.0))
         )
-
-        self.actor = Actor(self.state_dim, self.action_dim).to(self.device)
-        self.actor_target = Actor(self.state_dim, self.action_dim).to(self.device)
-        self.critic = Critic(self.state_dim, self.action_dim, self.num_agents).to(
-            self.device
+        self.eta_edge = float(
+            kwargs.get("eta_edge", config.get("eta_edge", 1.0))
         )
+
+        self.actor = Actor(self.state_dim, self.num_edges).to(self.device)
+        self.actor_target = Actor(self.state_dim, self.num_edges).to(self.device)
+        self.critic = Critic(
+            self.state_dim, self.num_edges, self.num_agents
+        ).to(self.device)
         self.critic_target = Critic(
-            self.state_dim, self.action_dim, self.num_agents
+            self.state_dim, self.num_edges, self.num_agents
         ).to(self.device)
         self.actor_target.load_state_dict(self.actor.state_dict())
         self.critic_target.load_state_dict(self.critic.state_dict())
@@ -66,29 +76,30 @@ class MADDPGAgent:
         self.noise.reset()
 
     def select_action(self, state, add_noise: bool = True) -> np.ndarray:
+        """Select action and return policy-format probabilities [3+E].
+
+        Noise is added to logits before softmax to maintain valid probability
+        distributions during exploration.
+        """
         state_tensor = torch.as_tensor(
             state, dtype=torch.float32, device=self.device
         ).unsqueeze(0)
         with torch.no_grad():
-            action = self.actor(state_tensor).squeeze(0).cpu().numpy()
+            logits = self.actor.logits(state_tensor).squeeze(0)
         if add_noise:
-            action = action + self.noise.sample()
-        action = np.clip(action, 0.0, 1.0)
-        ratio_sum = float(action[:3].sum())
-        action[:3] = action[:3] / ratio_sum if ratio_sum > 1e-8 else [1.0, 0.0, 0.0]
-        return action.astype(np.float32)
+            logits = logits + torch.as_tensor(
+                self.noise.sample(), dtype=logits.dtype, device=self.device
+            )
+        action = self.codec.logits_to_probs(logits[:3], logits[3:])
+        return action.cpu().numpy().astype(np.float32)
 
     def policy_to_env_action(self, policy_action) -> np.ndarray:
-        action = np.asarray(policy_action, dtype=np.float32).copy()
-        edge_id = min(int(np.floor(float(action[3]) * self.num_edges)), self.num_edges - 1)
-        action[3] = float(max(0, edge_id))
-        return action
+        """Convert policy probabilities to env action [a1, a2, a3, edge_id]."""
+        return self.codec.policy_to_env_action(policy_action)
 
     def env_to_policy_action(self, env_action) -> np.ndarray:
-        action = np.asarray(env_action, dtype=np.float32).copy()
-        denominator = max(self.num_edges - 1, 1)
-        action[3] = float(action[3]) / denominator
-        return action
+        """Convert env action to policy format [3+E] with one-hot edge."""
+        return self.codec.env_to_policy_action(env_action)
 
     def _target_joint_actions(
         self,
@@ -148,6 +159,7 @@ class MADDPGAgent:
         flat_actions = actions.reshape(batch_size, -1)
         flat_next_states = next_states.reshape(batch_size, -1)
 
+        # --- Critic update ---
         with torch.no_grad():
             next_joint_actions = self._target_joint_actions(next_states, all_agents)
             target_q = rewards[:, self.agent_idx : self.agent_idx + 1]
@@ -162,6 +174,7 @@ class MADDPGAgent:
         torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=10.0)
         self.critic_optimizer.step()
 
+        # --- Actor update ---
         for parameter in self.critic.parameters():
             parameter.requires_grad_(False)
         own_action, joint_actions = self._current_joint_actions_for_actor(
@@ -171,14 +184,16 @@ class MADDPGAgent:
             flat_states, joint_actions.reshape(batch_size, -1)
         ).mean()
 
+        # --- Distillation loss (mixed: partition MSE + edge CE) ---
         mask = expert_mask[:, self.agent_idx]
         if self.distill_weight > 0.0 and torch.any(mask > 0):
-            per_sample = F.mse_loss(
-                own_action,
-                expert_actions[:, self.agent_idx, :],
-                reduction="none",
-            ).mean(dim=-1)
-            distill_loss = (per_sample * mask).sum() / mask.sum().clamp_min(1.0)
+            expert_part = expert_actions[:, self.agent_idx, :3]
+            expert_edge = expert_actions[
+                :, self.agent_idx, 3:
+            ].argmax(dim=-1)
+            distill_loss, _, _ = self.codec.distillation_loss(
+                own_action, expert_part, expert_edge, mask, self.eta_edge
+            )
         else:
             distill_loss = torch.zeros((), device=self.device)
         actor_loss = policy_loss + self.distill_weight * distill_loss

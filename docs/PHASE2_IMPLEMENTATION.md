@@ -104,5 +104,6 @@
 - 每个 UE/ES 使用单服务 FCFS；CS 用 `parallel_factor` 表示聚合并行能力。
 - deadline 结果由确定性队列计划在任务准入时计算，尚未实现事件回调式完成日志。
 - 下行使用可配置发射功率并复用同一路径损耗模型。
-- MAPPO/HAPPO 的离散 edge selector 仍待 Phase 3 修复。
+- 本阶段完成时 MAPPO/HAPPO 的离散 edge selector 尚未修复；该历史限制已在
+  2026-06-13 的 EI C1 混合动作改造中消除。
 - 本阶段 smoke 只证明工程正确性，不构成论文性能结论。
