@@ -68,4 +68,8 @@ python -m LLM4RL.main --help
 - `publication/letter-revision`：执行 `docs/MAPS_REDEVELOPMENT_PLAN.md` 中的完整 Letter 增强路线。
 - `publication/ei-conference`：执行 `docs/EI_CONFERENCE_REVISION_PLAN.md` 中的低成本 EI 会议修改路线。
 
-当前 EI 分支的下一步是修复混合动作表示、实现 mixed distillation 与退火消融，并建立正式论文指标和实验配置。完成这些工作前，`legacy_maps` 只用于工程 smoke test，不能作为论文结果。
+EI 论文的最终 baseline、场景、指标、图表和删减项见
+`docs/EI_FINAL_EXPERIMENT_PRESENTATION.md`。当前 EI 分支的下一步是修复
+混合动作表示、实现 mixed distillation 与退火消融，并建立正式论文指标和
+实验配置。完成这些工作前，`legacy_maps` 只用于工程 smoke test，不能作为
+论文结果。

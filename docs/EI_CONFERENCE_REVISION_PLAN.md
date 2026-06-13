@@ -5,6 +5,10 @@
 > 目标：在保留原始 MAPS 技术主线的前提下，以较低开发成本修复技术硬伤、补足关键证据，并形成可投稿 EI 会议的完整论文。
 > 非目标：本分支不实现 Letter 路线中的 CV-CED、反事实信用分配、约束门控、多 LLM 大矩阵或完整 Phase 0-9 重构。
 
+> 最终实验矩阵、baseline、指标、图表和删减项以
+> [EI_FINAL_EXPERIMENT_PRESENTATION.md](EI_FINAL_EXPERIMENT_PRESENTATION.md)
+> 为准；本文档保留总体研发路线与审稿意见映射。
+
 ## 1. 总体结论
 
 EI 版本不应把创新定位为“首次结合 LLM 与 MARL”，也不应把“LLM 提高 RL 样本效率”单独作为原创发现。2023-2026 年的相关研究已经覆盖 LLM policy teacher、LLM-guided RL regularization、LLM-enhanced MARL offloading、LLM 直接生成卸载策略等方向。
@@ -55,7 +59,9 @@ EI 版本不应把创新定位为“首次结合 LLM 与 MARL”，也不应把�
 
 1. **问题建模：** 建立动态 TEC 任务流下的细粒度并行任务划分问题，显式考虑 UE/ES/CS 队列、无线传输、有线回传、结果返回、能耗和 deadline，并将其表述为 Dec-POMDP。
 2. **方法设计：** 开发 MAPS，将 LLM 生成的状态条件专家先验蒸馏到 MADDPG actor；连续划分比例使用 MSE，离散 ES 选择使用交叉熵，并以退火系数逐步降低专家影响。
-3. **实验评价：** 通过消融、可靠性和 UE 规模实验，比较 MAPS、无 LLM 的 MADDPG、无退火版本和 LLM-only，报告收敛效率、平均/P95 时延、能耗、DVR 和 TCR。
+3. **实验评价：** 通过消融、可靠性和 UE 规模实验，比较 MAPS 与
+Greedy-MinCost、LLM-only、MADDPG、MAPPO 和无退火版本，报告收敛效率、
+平均/P95 时延、能耗、DVR 和 TCR。
 
 任务语义、正确的物理模型、混合动作损失和实验基础设施属于必要设计，不单独包装成创新点。
 
@@ -359,61 +365,22 @@ episode 结束后应设置固定 drain horizon，让已进入系统的任务继�
 
 ## E5：正式实验矩阵
 
-### A. 主实验与消融
-
-固定 `U=10, E=5, C=1`：
-
-| 方法 | LLM prior | Distillation | Annealing |
-|---|---:|---:|---:|
-| LLM-only | yes | no | no |
-| MADDPG / MAPS-w/o-LLM | no | no | no |
-| MAPS-w/o-Annealing | yes | mixed | fixed |
-| MAPS | yes | mixed | yes |
-
-回答：
-
-- LLM prior 是否加速早期学习？
-- 固定信任 LLM 是否损害后期策略？
-- 退火是否保留早期收益并避免后期受限？
-
-### B. 可靠性实验
-
-在相同主场景报告：
-
-- Mean/P95 latency；
-- DVR；
-- TCR；
-- device/system energy。
-
-可增加三个 deadline 强度档位作为高性价比附加实验：
+最终方法、场景、指标和图表矩阵见
+[EI_FINAL_EXPERIMENT_PRESENTATION.md](EI_FINAL_EXPERIMENT_PRESENTATION.md)。
+正文方法固定为：
 
 ```text
-loose / medium / strict
+Greedy-MinCost
+LLM-only
+MADDPG
+MAPPO
+MAPS-w/o-Annealing
+MAPS
 ```
 
-### C. 扩展性实验
-
-最低要求：
-
-```text
-U = 10, 20, 30, 50
-E = 5
-C = 1
-```
-
-固定 ES 数量用于形成逐渐拥塞的压力测试，论文必须明确这不是“保持负载不变”的线性扩展实验。若资源允许，再补一组比例扩展：
-
-```text
-(U,E) = (10,5), (20,5), (30,10), (50,10)
-```
-
-主比较至少使用 MAPS 和 MADDPG；若运行预算允许，四种方法全部覆盖。
-
-### D. 推荐但非最低要求的增强基线
-
-在核心实验稳定后，优先修复 MAPPO 的 categorical edge head，并增加 MAPPO 作为异构 MARL 基线。这比实现 QMIX、VDN、QPLEX 等离散值分解算法更符合当前连续划分问题，也能回应“只有一个 DRL 算法”的质疑。
-
-该项属于推荐增强项，不阻塞 EI 最低投稿包。未修复混合动作前，现有 MAPPO/HAPPO 结果不得进入论文。
+其中 MAPPO 是正式第二类 MARL baseline，不再作为可选项；现有连续
+edge selector 修复前不得进入论文。规模实验只展示 Greedy、MADDPG、
+MAPPO 和 MAPS，避免在每个场景重复同一消融。
 
 ### 不做
 
@@ -599,7 +566,7 @@ LLM action 是由当前 observation/global summary 条件化得到的 training p
 - RQ2：退火是否优于固定蒸馏？
 - RQ3：MAPS 是否改善 deadline reliability？
 - RQ4：UE 数量增长时性能如何变化？
-- RQ5（可选）：相较 MAPPO 是否仍有早期学习优势？
+- RQ5：LLM 专家动作是否具有可用质量，训练期和部署期开销分别是多少？
 
 推荐图表：
 
@@ -607,12 +574,13 @@ LLM action 是由当前 observation/global summary 条件化得到的 training p
 |---|---|
 | Fig. 1 | TEC system and parallel task branches |
 | Fig. 2 | MAPS training and deployment workflow |
-| Fig. 3 | Reward vs environment steps with 95% CI |
-| Fig. 4 | Latency/energy training curves or steps-to-threshold |
+| Fig. 3 | Reward curve and sample-efficiency ablation |
+| Fig. 4 | Independent-test P95 latency and DVR |
 | Fig. 5 | Scalability for U=10/20/30/50 |
+| Fig. 6 | Deadline sensitivity（篇幅不足时放附录） |
 | Table I | System and training parameters |
-| Table II | Mean/P95 latency, energy, DVR, TCR |
-| Table III | Ablation and LLM overhead |
+| Table II | Independent-test latency, energy, DVR, TCR and decision latency |
+| Table III | Reward AUC, steps-to-threshold and LLM overhead |
 
 Normalized Reward 必须给出公式、归一化范围和参考值。正文结果优先解释物理指标，不以 reward 代替系统性能。
 
@@ -641,7 +609,7 @@ Normalized Reward 必须给出公式、归一化范围和参考值。正文结�
 |---|---|
 | LLM + RL 新颖性有限 | 降低创新措辞，定位为 TEC fine-grained mixed-action framework |
 | 场景仅 10 UE/5 ES | 增加 U=10/20/30/50 扩展实验 |
-| 只有 MADDPG 和一个 LLM | 最低包通过消融增强证据；推荐增加修复后的 MAPPO，不声称跨 LLM |
+| 只有 MADDPG 和一个 LLM | 增加 Greedy-MinCost 和修复混合动作后的 MAPPO；仍只使用一个 LLM，不声称跨 LLM |
 | Eq. (1) 缺 channel gain/N0B | 论文同步 Phase 2 Shannon/path-loss 模型 |
 | Eq. (5) 量纲错误 | 引入 Delta t，queue 统一为 cycles |
 | wired energy 错误 | 使用独立 backhaul rate/propagation/energy-per-bit |
@@ -668,7 +636,9 @@ Normalized Reward 必须给出公式、归一化范围和参考值。正文结�
 - 实现 fixed/annealed/no-LLM 三种配置；
 - 增加单元测试。
 
-停止条件：四种 EI 方法可在 Phase 2 环境完成短训练，loss 有限且同 seed 可复现。
+停止条件：MADDPG、MAPPO、MAPS-w/o-Annealing 和 MAPS 可在 Phase 2
+环境完成短训练，Greedy-MinCost 与 LLM-only 可评估，loss 和指标有限且
+同 seed 可复现。
 
 ### Sprint EI-2：论文证据链
 
@@ -686,7 +656,8 @@ Normalized Reward 必须给出公式、归一化范围和参考值。正文结�
 - 5 seeds 主实验；
 - 5 seeds 消融；
 - 5 seeds 规模实验；
-- 可选 MAPPO；
+- MAPPO 正式对比；
+- deadline sensitivity 与 LLM 专家质量/开销；
 - 统计分析和 publication figures。
 
 停止条件：每个论文 claim 都能映射到 raw artifact、配置和图表。
@@ -714,7 +685,8 @@ Normalized Reward 必须给出公式、归一化范围和参考值。正文结�
 | 正式实验 | 3-7 天 |
 | LaTeX 重写与图表 | 4-7 天 |
 
-总计约 3-4 周。若省略 MAPPO 和第二个 deadline sensitivity 实验，可控制在约 2-3 周。
+总计约 3-4 周。deadline sensitivity 可在篇幅不足时移入附录，但
+Greedy-MinCost、MAPPO、专家质量和独立测试不能省略。
 
 ## 10. 最终投稿最低完成定义
 
@@ -722,7 +694,7 @@ Normalized Reward 必须给出公式、归一化范围和参考值。正文结�
 
 - mixed action 不再通过连续 edge scalar 取整；
 - partition MSE + edge CE；
-- no-LLM/fixed/annealed/LLM-only 四种方法可统一运行；
+- Greedy-MinCost、LLM-only、MADDPG、MAPPO、fixed 和 annealed 六种方法可统一运行；
 - 正式 expert cache 可审计；
 - 关键逻辑有测试；
 - 所有运行带 seed、config、commit 和 manifest。
@@ -730,7 +702,7 @@ Normalized Reward 必须给出公式、归一化范围和参考值。正文结�
 ### 实验
 
 - 至少 5 seeds；
-- 消融包含 MADDPG、MAPS-w/o-Annealing、MAPS、LLM-only；
+- 主比较包含 Greedy-MinCost、LLM-only、MADDPG、MAPPO、MAPS-w/o-Annealing 和 MAPS；
 - 报告 mean/P95 latency、device/system energy、DVR、TCR；
 - U=10/20/30/50；
 - 收敛按 environment steps、AUC 和 threshold 定义；
@@ -762,9 +734,11 @@ Normalized Reward 必须给出公式、归一化范围和参考值。正文结�
 
 ### D-EI-3：是否必须实现多个 MARL baseline？
 
-决定：最低包不阻塞于多个 MARL；MAPPO 是优先增强项。
+决定：正式 EI 实验加入修复混合动作后的 MAPPO。
 
-理由：现有 MAPPO 的 edge action 同样不正确，直接使用会造成不公平比较。先完成 MAPS 技术正确性和四种核心消融，再决定是否投入 2-4 天修复 MAPPO。
+理由：只有 MADDPG 及其消融不足以排除算法家族偏差。MAPPO 与连续
+partition 更匹配，也比额外实现多个离散 value-decomposition 方法更
+经济。现有 MAPPO 的 edge action 同样不正确，修复前不能使用。
 
 ### D-EI-4：是否保留旧实验曲线？
 
