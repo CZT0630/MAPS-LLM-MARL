@@ -182,7 +182,7 @@ llm:
   # # 阿里云LLM服务配置（qwen-plus）
   # base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
   # model_name: "qwen-plus-latest"
-  # api_key: "sk-1907a18fea6640c6aac5b4194920169f"
+  # api_key: "<redacted-from-legacy-freeze>"
   
   # 连接参数
   timeout: 120              # 连接超时时间(秒)

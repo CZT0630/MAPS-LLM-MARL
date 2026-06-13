@@ -1,0 +1,16 @@
+# Xiaomi MiMo provider configuration for EI expert generation.
+# Supply the credential through MIMO_API_KEY; never add it to this file.
+llm:
+  provider: "xiaomi_mimo"
+  display_name: "MiMo-V2.5"
+  base_url: "https://token-plan-cn.xiaomimimo.com/v1"
+  endpoint: "/chat/completions"
+  model_name: "mimo-v2.5"
+  api_key_env: "MIMO_API_KEY"
+  temperature: 0.0
+  max_completion_tokens: 8192
+  enable_thinking: false
+  timeout: 30
+  read_timeout: 180
+  max_retries: 3
+  retry_backoff_seconds: 1.0

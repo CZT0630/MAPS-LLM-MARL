@@ -98,7 +98,7 @@ U = 10, E = 5, C = 1
 | 方法 | 类别 | LLM | 学习 | 作用 |
 |---|---|---:|---:|---|
 | Greedy-MinCost | 模型启发式 | no | no | 说明是否需要长期学习 |
-| LLM-only | 语言模型决策 | yes | no | 说明 LLM 是否能独立实时调度 |
+| MiMo-V2.5 (LLM-only) | 语言模型决策 | yes | no | 说明 LLM 是否能独立实时调度 |
 | MADDPG | MARL backbone | no | yes | 隔离 LLM 指导的价值 |
 | MAPPO | 异构 MARL | no | yes | 避免只和同一算法家族比较 |
 | MAPS-w/o-Annealing | 消融 | yes | yes | 检验固定专家权重的影响 |
@@ -124,15 +124,19 @@ J = w_T * T_norm + w_E * E_norm + w_D * violation
 
 候选 partition template 在所有实验中固定并写入配置。不能为不同场景手工调整候选集。
 
-### 3.3 LLM-only 定义
+### 3.3 MiMo-V2.5 (LLM-only) 定义
 
-LLM-only 对每个状态直接采用同一 prompt 和同一 LLM 生成的动作，不训练 MARL。
+MiMo-V2.5 (LLM-only) 对每个状态直接采用同一 prompt 和小米
+`mimo-v2.5` API 生成的动作，不训练 MARL。MAPS 使用同一模型、prompt、
+temperature 和 parser 生成训练期专家先验。
 
 - temperature 固定为 0 或可复现低值；
 - 首次查询保存 state-keyed cache；
 - 性能来自对应状态的真实 LLM 输出，不使用固定的通用动作；
 - 论文同时报告 uncached query latency 和 cached replay latency；
-- LLM-only 不出现在“训练收敛曲线”中，因为它没有训练过程。
+- MiMo-V2.5 不出现在“训练收敛曲线”中，因为它没有训练过程。
+- 论文模型名称必须写成 `MiMo-V2.5 (mimo-v2.5)`，不能将实际
+  `mimo-v2.5` 输出标注为 Qwen、GPT、GLM 或其他模型。
 
 ### 3.4 MADDPG
 
@@ -311,7 +315,7 @@ MAPS
 
 回答 RQ1 和 RQ2。
 
-Greedy 和 LLM-only 没有训练过程，不放入收敛曲线。
+Greedy 和 MiMo-V2.5 没有训练过程，不放入收敛曲线。
 
 ## E2：独立测试集主性能
 
@@ -321,7 +325,7 @@ Greedy 和 LLM-only 没有训练过程，不放入收敛曲线。
 
 ```text
 Greedy-MinCost
-LLM-only
+MiMo-V2.5 (LLM-only)
 MADDPG
 MAPPO
 MAPS-w/o-Annealing
@@ -353,10 +357,10 @@ MAPPO
 MAPS
 ```
 
-不再重复 `MAPS-w/o-Annealing` 和 `LLM-only`：
+不再重复 `MAPS-w/o-Annealing` 和 `MiMo-V2.5 (LLM-only)`：
 
 - 退火作用已由 E1/E2 回答；
-- LLM-only 在大规模场景查询成本高，且不能体现部署策略扩展性。
+- MiMo-V2.5 在大规模场景查询成本高，且不能体现部署策略扩展性。
 
 指标：
 
@@ -454,7 +458,8 @@ P95 latency 只对已完成任务计算，并与 TCR、DVR 同时报告；不能
 2. 再以 training seed 为独立统计单位；
 3. 不能把每个 task、episode 或 timestep 伪装成独立样本扩大样本量。
 
-Greedy 和 LLM-only 没有 training seed，报告 test-scenario bootstrap CI；与学习方法的主要显著性结论只围绕 MAPS、MADDPG、MAPPO 和消融展开。
+Greedy 和 MiMo-V2.5 没有 training seed，报告 test-scenario bootstrap
+CI；与学习方法的主要显著性结论只围绕 MAPS、MADDPG、MAPPO 和消融展开。
 
 ### 7.3 报告
 
@@ -485,7 +490,7 @@ Total formal training runs:
 
 - S1 的 MADDPG、MAPPO 和 MAPS checkpoint 复用于 E2、E3 的 `U=10` 和 E4；
 - MAPS-w/o-Annealing 只在 S1 做机制消融，不重复跑全部规模；
-- Greedy-MinCost 和 LLM-only 只评估，不产生训练 run；
+- Greedy-MinCost 和 MiMo-V2.5 (LLM-only) 只评估，不产生训练 run；
 - E4 复用 medium 场景训练 checkpoint，不额外训练；
 - pilot 预计 `4 methods * 2 seeds = 8` 个短 run。
 
@@ -585,7 +590,7 @@ local observation -> actor -> hybrid scheduling action
 方法：
 
 ```text
-Greedy, LLM-only, MADDPG, MAPPO, no-annealing, MAPS
+Greedy, MiMo-V2.5, MADDPG, MAPPO, no-annealing, MAPS
 ```
 
 mean latency、energy 和 TCR 的精确值放 Table II，避免图表重复。
@@ -682,7 +687,7 @@ Deployment LLM calls
 3. latency 随训练 episode 的曲线；
 4. energy 随训练 episode 的曲线；
 5. actor loss、critic loss、distillation loss 曲线；
-6. LLM-only 的伪收敛曲线；
+6. MiMo-V2.5 的伪收敛曲线；
 7. 同时展示 TCR、on-time completion rate 和 `1-DVR`；
 8. 同时在正文展示 device energy 与 system energy；
 9. 重复 baseline 名称：`MADDPG`、`MAPS-w/o-LLM`、`MAPS-w/o-Distill`；
@@ -740,7 +745,7 @@ method: maddpg
 method: mappo
 method: maps_no_annealing
 method: maps
-method: llm_only
+method: llm_only  # paper label: MiMo-V2.5 (LLM-only)
 method: greedy_min_cost
 ```
 
@@ -929,7 +934,7 @@ EI 实验完成必须满足：
 
 - 六个正文方法定义清晰且可运行；
 - MAPPO 使用正确混合动作；
-- Greedy 与 LLM-only 有可复现实现；
+- Greedy 与 MiMo-V2.5 (LLM-only) 有可复现实现；
 - E1-E5 均有冻结配置和 raw artifact；
 - E1-E3 至少 5 training seeds；
 - 正式测试关闭 exploration 和 LLM；

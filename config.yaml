@@ -172,26 +172,22 @@ happo:
   max_episodes: 200
   max_steps: 200
 
-# LLM配置
+# LLM configuration for the EI branch. The credential is read from the
+# MIMO_API_KEY environment variable and is never stored in this file.
 llm:
-  # LLM服务配置（qwen3-14b）
-  base_url: "http://10.200.1.35:8888/v1/completions"
-  model_name: "qwen3-14b"
-  api_key: ""
-  
-  # # 阿里云LLM服务配置（qwen-plus）
-  # base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-  # model_name: "qwen-plus-latest"
-  # api_key: "sk-1907a18fea6640c6aac5b4194920169f"
-  
-  # 连接参数
-  timeout: 120              # 连接超时时间(秒)
-  read_timeout: 500         # 读取超时时间(秒)
-  max_retries: 1            # 最大重试次数
-  
-  # LLM指导参数
-  temperature: 0.3
-  max_tokens: 32768         # 最大token数，确保完整响应
+  provider: "xiaomi_mimo"
+  display_name: "MiMo-V2.5"
+  base_url: "https://token-plan-cn.xiaomimimo.com/v1"
+  endpoint: "/chat/completions"
+  model_name: "mimo-v2.5"
+  api_key_env: "MIMO_API_KEY"
+  timeout: 30
+  read_timeout: 180
+  max_retries: 3
+  retry_backoff_seconds: 1.0
+  temperature: 0.0
+  max_completion_tokens: 8192
+  enable_thinking: false
   enable_expert_guidance: true
 
 # 随机种子

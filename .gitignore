@@ -14,4 +14,6 @@ logs/
 
 # Local credentials and machine-specific overrides.
 .env
+.env.*
+!.env.example
 configs/local*.yaml

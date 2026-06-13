@@ -15,8 +15,36 @@ import torch
 import yaml
 
 
+SENSITIVE_CONFIG_KEYS = {
+    "api_key",
+    "access_token",
+    "authorization",
+    "password",
+    "secret",
+}
+
+
+def sanitize_config(config: Any) -> Any:
+    """Remove inline credentials before hashing or persisting a run config."""
+    if isinstance(config, dict):
+        sanitized = {}
+        for key, value in config.items():
+            if str(key).lower() in SENSITIVE_CONFIG_KEYS:
+                sanitized[key] = "<redacted>" if value else ""
+            else:
+                sanitized[key] = sanitize_config(value)
+        return sanitized
+    if isinstance(config, list):
+        return [sanitize_config(value) for value in config]
+    if isinstance(config, tuple):
+        return tuple(sanitize_config(value) for value in config)
+    return config
+
+
 def stable_config_hash(config: dict[str, Any]) -> str:
-    payload = yaml.safe_dump(config, allow_unicode=True, sort_keys=True)
+    payload = yaml.safe_dump(
+        sanitize_config(config), allow_unicode=True, sort_keys=True
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -42,6 +70,7 @@ def build_manifest(
     command: str,
     status: str = "running",
 ) -> dict[str, Any]:
+    safe_config = sanitize_config(config)
     return {
         "schema_version": "1.0",
         "model_version": config.get("model_version", 2),
@@ -50,7 +79,7 @@ def build_manifest(
         "status": status,
         "started_at": datetime.now(timezone.utc).isoformat(),
         "command": command,
-        "config_hash": stable_config_hash(config),
+        "config_hash": stable_config_hash(safe_config),
         "git_commit": get_git_commit(project_root),
         "system": {
             "python": sys.version,
@@ -60,7 +89,7 @@ def build_manifest(
             "cuda_version": torch.version.cuda,
             "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
         },
-        "config": config,
+        "config": safe_config,
     }
 
 

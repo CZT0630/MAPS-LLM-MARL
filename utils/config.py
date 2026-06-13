@@ -64,8 +64,15 @@ def get_default_config():
             "deadline_penalty": 0.0
         },
         "llm": {
-            "api_key": "",
-            "model_name": "qwen3-14b",
+            "provider": "xiaomi_mimo",
+            "display_name": "MiMo-V2.5",
+            "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
+            "endpoint": "/chat/completions",
+            "model_name": "mimo-v2.5",
+            "api_key_env": "MIMO_API_KEY",
+            "temperature": 0.0,
+            "max_completion_tokens": 4096,
+            "enable_thinking": False,
             "query_frequency": 1  # 每多少个episode查询一次LLM
         },
         "maddpg": {

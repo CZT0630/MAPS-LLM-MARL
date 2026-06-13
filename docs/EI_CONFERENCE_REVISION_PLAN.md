@@ -53,14 +53,14 @@ EI 版本不应把创新定位为“首次结合 LLM 与 MARL”，也不应把�
 
 ### 2.2 一句话贡献
 
-> MAPS transfers offline LLM-generated scheduling priors into decentralized MARL policies through mixed-action distillation and annealed guidance, enabling real-time fine-grained terminal-edge-cloud task partitioning without online LLM inference.
+> MAPS transfers offline MiMo-V2.5-generated scheduling priors into decentralized MARL policies through mixed-action distillation and annealed guidance, enabling real-time fine-grained terminal-edge-cloud task partitioning without online LLM inference.
 
 ### 2.3 论文贡献控制为三条
 
 1. **问题建模：** 建立动态 TEC 任务流下的细粒度并行任务划分问题，显式考虑 UE/ES/CS 队列、无线传输、有线回传、结果返回、能耗和 deadline，并将其表述为 Dec-POMDP。
 2. **方法设计：** 开发 MAPS，将 LLM 生成的状态条件专家先验蒸馏到 MADDPG actor；连续划分比例使用 MSE，离散 ES 选择使用交叉熵，并以退火系数逐步降低专家影响。
 3. **实验评价：** 通过消融、可靠性和 UE 规模实验，比较 MAPS 与
-Greedy-MinCost、LLM-only、MADDPG、MAPPO 和无退火版本，报告收敛效率、
+Greedy-MinCost、MiMo-V2.5 (LLM-only)、MADDPG、MAPPO 和无退火版本，报告收敛效率、
 平均/P95 时延、能耗、DVR 和 TCR。
 
 任务语义、正确的物理模型、混合动作损失和实验基础设施属于必要设计，不单独包装成创新点。
@@ -123,7 +123,7 @@ Phase 0-2 已经完成以下基础工作：
 3. `MADDPGAgent.update()` 对三个比例和 ES 选择统一使用 MSE。
 4. `legacy_maps.distill_weight` 当前为固定值，没有实现论文中的退火。
 5. `fixtures/legacy_expert_cache.json` 是合成工程缓存，不能作为论文证据。
-6. 现有 runner 没有独立的 `LLM-only`、`MAPS-w/o-Annealing` 实验模式。
+6. 现有 runner 没有独立的 `MiMo-V2.5 (LLM-only)`、`MAPS-w/o-Annealing` 实验模式。
 7. episode 输出缺少论文所需的 P95 latency、DVR、TCR、Reward AUC 和 steps-to-threshold。
 8. 没有 10/20/30/50 UE 的正式配置和统一评测矩阵。
 9. 原始 LaTeX 仍使用错误的 Eq. (1)、Eq. (5)、wired energy、统一动作 MSE 和含糊 Algorithm 1。
@@ -371,7 +371,7 @@ episode 结束后应设置固定 drain horizon，让已进入系统的任务继�
 
 ```text
 Greedy-MinCost
-LLM-only
+MiMo-V2.5 (LLM-only)
 MADDPG
 MAPPO
 MAPS-w/o-Annealing
@@ -637,13 +637,13 @@ Normalized Reward 必须给出公式、归一化范围和参考值。正文结�
 - 增加单元测试。
 
 停止条件：MADDPG、MAPPO、MAPS-w/o-Annealing 和 MAPS 可在 Phase 2
-环境完成短训练，Greedy-MinCost 与 LLM-only 可评估，loss 和指标有限且
+环境完成短训练，Greedy-MinCost 与 MiMo-V2.5 (LLM-only) 可评估，loss 和指标有限且
 同 seed 可复现。
 
 ### Sprint EI-2：论文证据链
 
 - 生成真实 LLM expert cache；
-- 实现 LLM-only；
+- 实现 MiMo-V2.5 (LLM-only)；
 - 增加 P95、DVR、TCR、AUC、threshold metrics；
 - 增加 drain horizon；
 - 建立 10/20/30/50 UE 配置；
@@ -694,7 +694,7 @@ Greedy-MinCost、MAPPO、专家质量和独立测试不能省略。
 
 - mixed action 不再通过连续 edge scalar 取整；
 - partition MSE + edge CE；
-- Greedy-MinCost、LLM-only、MADDPG、MAPPO、fixed 和 annealed 六种方法可统一运行；
+- Greedy-MinCost、MiMo-V2.5 (LLM-only)、MADDPG、MAPPO、fixed 和 annealed 六种方法可统一运行；
 - 正式 expert cache 可审计；
 - 关键逻辑有测试；
 - 所有运行带 seed、config、commit 和 manifest。
@@ -702,7 +702,7 @@ Greedy-MinCost、MAPPO、专家质量和独立测试不能省略。
 ### 实验
 
 - 至少 5 seeds；
-- 主比较包含 Greedy-MinCost、LLM-only、MADDPG、MAPPO、MAPS-w/o-Annealing 和 MAPS；
+- 主比较包含 Greedy-MinCost、MiMo-V2.5 (LLM-only)、MADDPG、MAPPO、MAPS-w/o-Annealing 和 MAPS；
 - 报告 mean/P95 latency、device/system energy、DVR、TCR；
 - U=10/20/30/50；
 - 收敛按 environment steps、AUC 和 threshold 定义；
