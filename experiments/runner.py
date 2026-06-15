@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import math
 import sys
@@ -21,7 +22,15 @@ from LLM4RL.algos.maddpg.maddpg_agent import MADDPGAgent
 from LLM4RL.algos.maddpg.replay_buffer import JointReplayBuffer
 from LLM4RL.algos.mappo.mappo_agent import MAPPOAgent
 from LLM4RL.baselines.greedy_min_cost import GreedyMinCostAgent
+from LLM4RL.baselines.llm_only import LLMOnlyAgent
 from LLM4RL.environment.cloud_edge_env import CloudEdgeDeviceEnv
+from LLM4RL.llm_assistant.cached_expert_provider import CachedExpertProvider
+from LLM4RL.llm_assistant.ei_prompt_builder import EIPromptBuilder
+from LLM4RL.llm_assistant.ei_state import (
+    build_ei_state_payload,
+    ei_environment_fingerprint,
+)
+from LLM4RL.llm_assistant.expert_cache import ExpertCache, hash_state
 from LLM4RL.llm_assistant.expert_provider import FixedCacheExpertProvider
 from LLM4RL.utils.run_manifest import build_manifest, write_manifest
 from LLM4RL.utils.seed import set_global_seed
@@ -35,6 +44,7 @@ SUPPORTED_ALGORITHMS = (
     "mappo",
     "happo",
     "greedy_min_cost",
+    "llm_only",
 )
 PHASE1_ALGORITHMS = (
     "maddpg",
@@ -57,6 +67,66 @@ def _local_states(env: CloudEdgeDeviceEnv, global_state) -> np.ndarray:
     return np.asarray(
         [env.extract_agent_state(global_state, i) for i in range(env.num_devices)],
         dtype=np.float32,
+    )
+
+
+def _resolve_project_path(path_value: str | Path) -> Path:
+    path = Path(path_value)
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def _make_maps_expert_provider(
+    config: dict[str, Any],
+    num_agents: int,
+    num_edges: int,
+):
+    expert_cfg = copy.deepcopy(config.get("expert_cache", {}))
+    llm_cfg = config.get("llm_maddpg", {})
+    cache_format = str(
+        expert_cfg.get(
+            "format",
+            llm_cfg.get("expert_cache_format", "fixed"),
+        )
+    )
+    cache_path = _resolve_project_path(
+        expert_cfg.get(
+            "path",
+            llm_cfg.get(
+                "expert_cache", "fixtures/legacy_expert_cache.json"
+            ),
+        )
+    )
+    fallback_policy = str(
+        expert_cfg.get("fallback_policy", "all_local")
+    )
+    if cache_format == "fixed":
+        return FixedCacheExpertProvider(
+            cache_path=cache_path,
+            num_agents=num_agents,
+            num_edges=num_edges,
+        )
+    if cache_format != "state_keyed":
+        raise ValueError(
+            "expert_cache.format must be 'fixed' or 'state_keyed'"
+        )
+    cache = ExpertCache.load(cache_path)
+    if len(cache) == 0:
+        raise ValueError("formal state-keyed cache must not be empty")
+    if cache.provider != "xiaomi_mimo":
+        raise ValueError("formal cache provider must be xiaomi_mimo")
+    if cache.requested_model != "mimo-v2.5":
+        raise ValueError("formal cache model must be mimo-v2.5")
+    if cache.prompt_version != EIPromptBuilder.VERSION:
+        raise ValueError("formal cache prompt_version must be ei-v1")
+    if cache.state_key_version != ExpertCache.STATE_KEY_VERSION:
+        raise ValueError("formal cache state_key_version is unsupported")
+    if cache.temperature != 0.0:
+        raise ValueError("formal cache temperature must be 0.0")
+    return CachedExpertProvider(
+        cache=cache,
+        num_agents=num_agents,
+        num_edges=num_edges,
+        fallback_policy=fallback_policy,
     )
 
 
@@ -176,22 +246,13 @@ def _run_maddpg_family(
         mode_cfg = copy.deepcopy(config.get(algorithm, {}))
         algorithm_cfg.update(llm_cfg)
         algorithm_cfg.update(mode_cfg)
-        cache_path = Path(
-            algorithm_cfg.get(
-                "expert_cache",
-                config.get("legacy_maps", {}).get(
-                    "expert_cache", "fixtures/legacy_expert_cache.json"
-                ),
-            )
-        )
-        if not cache_path.is_absolute():
-            cache_path = PROJECT_ROOT / cache_path
-        expert_provider = FixedCacheExpertProvider(
-            cache_path=cache_path,
+        expert_provider = _make_maps_expert_provider(
+            config=config,
             num_agents=num_agents,
             num_edges=num_edges,
         )
-        expert_metadata = expert_provider.metadata
+        if isinstance(expert_provider, FixedCacheExpertProvider):
+            expert_metadata = expert_provider.metadata
 
     if algorithm == "maps_no_annealing":
         algorithm_cfg["distill_weight"] = float(
@@ -288,7 +349,22 @@ def _run_maddpg_family(
             expert_actions = None
             expert_mask = None
             if expert_provider is not None:
-                expert_batch = expert_provider.get_actions(episode, step)
+                if isinstance(expert_provider, CachedExpertProvider):
+                    expert_state = build_ei_state_payload(env)
+                    if any(
+                        task is not None for task in expert_state["tasks"]
+                    ):
+                        expert_batch = expert_provider.get_actions(
+                            expert_state
+                        )
+                    else:
+                        expert_batch = expert_provider.get_noop_actions(
+                            expert_state
+                        )
+                else:
+                    expert_batch = expert_provider.get_actions(
+                        episode, step
+                    )
                 expert_actions = expert_batch.policy_actions
                 expert_mask = expert_batch.valid_mask
                 expert_metadata = expert_batch.metadata
@@ -690,6 +766,217 @@ def _run_greedy_min_cost(
     )
 
 
+def _run_llm_only(
+    config: dict[str, Any],
+    seed: int,
+    output_root: Path,
+    command: str,
+) -> dict[str, Any]:
+    """Run the LLM-only evaluator (no training, cache lookup only)."""
+    set_global_seed(seed)
+    run_dir = _make_run_dir(output_root, "llm_only", seed)
+    manifest = build_manifest(PROJECT_ROOT, "llm_only", seed, config, command)
+    write_manifest(run_dir / "run_manifest.json", manifest)
+
+    llm_only_cfg = config.get("llm_only", {})
+    scenario_bank_path = llm_only_cfg.get("scenario_bank")
+    default_max_steps = int(llm_only_cfg.get("max_steps", 10))
+    if scenario_bank_path:
+        scenario_bank_path = _resolve_project_path(scenario_bank_path)
+        scenario_bank_bytes = scenario_bank_path.read_bytes()
+        scenario_bank = json.loads(scenario_bank_bytes.decode("utf-8"))
+        scenario_bank_id = str(scenario_bank["scenario_bank_id"])
+        if not scenario_bank_id:
+            raise ValueError("frozen scenario bank has no scenario_bank_id")
+        raw_scenarios = scenario_bank.get("scenarios")
+        if raw_scenarios is None:
+            raw_scenarios = [
+                {"seed": value, "max_steps": default_max_steps}
+                for value in scenario_bank.get("seeds", [])
+            ]
+        scenarios = [
+            {
+                "seed": int(item["seed"]),
+                "max_steps": int(
+                    item.get("max_steps", default_max_steps)
+                ),
+            }
+            for item in raw_scenarios
+        ]
+        if not scenarios:
+            raise ValueError("frozen scenario bank has no seeds")
+        if any(item["max_steps"] <= 0 for item in scenarios):
+            raise ValueError("scenario max_steps must be positive")
+        scenario_bank_frozen = True
+        scenario_bank_sha256 = hashlib.sha256(
+            scenario_bank_bytes
+        ).hexdigest()
+        construction_seed = int(
+            scenario_bank.get("construction_seed", seed)
+        )
+    else:
+        episodes_count = int(
+            llm_only_cfg.get(
+                "max_episodes",
+                config.get("training", {}).get("episodes", 20),
+            )
+        )
+        scenario_bank_id = None
+        scenarios = [
+            {
+                "seed": seed + episode,
+                "max_steps": default_max_steps,
+            }
+            for episode in range(episodes_count)
+        ]
+        scenario_bank_frozen = False
+        scenario_bank_sha256 = None
+        construction_seed = seed
+
+    set_global_seed(construction_seed)
+    env = CloudEdgeDeviceEnv(config)
+    num_edges = env.num_edges
+    num_agents = env.num_devices
+    codec = HybridActionCodec(num_edges)
+    provider = _make_maps_expert_provider(
+        config=config,
+        num_agents=num_agents,
+        num_edges=num_edges,
+    )
+    if isinstance(provider, CachedExpertProvider):
+        agent = LLMOnlyAgent(
+            cache=provider.cache,
+            num_agents=num_agents,
+            num_edges=num_edges,
+            fallback_policy=provider.fallback_policy,
+        )
+    else:
+        agent = None
+    if scenario_bank_frozen and isinstance(provider, CachedExpertProvider):
+        expected_cache_sha256 = scenario_bank.get("cache_sha256")
+        if (
+            expected_cache_sha256
+            and provider.cache.file_sha256 != expected_cache_sha256
+        ):
+            raise ValueError(
+                "frozen scenario bank does not match the configured cache"
+            )
+        expected_environment = scenario_bank.get(
+            "environment_fingerprint"
+        )
+        actual_environment = ei_environment_fingerprint(config)
+        if (
+            expected_environment
+            and actual_environment != expected_environment
+        ):
+            raise ValueError(
+                "frozen scenario bank environment does not match config"
+            )
+    require_full_cache_coverage = bool(
+        llm_only_cfg.get("require_full_cache_coverage", True)
+    )
+
+    episodes: list[dict[str, float]] = []
+    last_expert_metadata: dict[str, Any] = {}
+    for scenario in scenarios:
+        scenario_seed = scenario["seed"]
+        max_steps = scenario["max_steps"]
+        env.max_steps = max_steps
+        _global_state, _ = env.reset(seed=scenario_seed)
+        reward_steps: list[float] = []
+        latencies: list[float] = []
+        energies: list[float] = []
+        info: dict[str, Any] = {}
+
+        for step in range(max_steps):
+            if agent is not None:
+                state = build_ei_state_payload(env)
+                if any(task is not None for task in state["tasks"]):
+                    state_hash = hash_state(state)
+                    if (
+                        scenario_bank_frozen
+                        and require_full_cache_coverage
+                        and not provider.cache.has(state_hash)
+                    ):
+                        raise RuntimeError(
+                            "frozen LLM-only scenario is not fully covered by "
+                            f"the expert cache: {state_hash}"
+                        )
+                    expert_batch = agent.select_joint_actions(state)
+                else:
+                    expert_batch = agent.provider.get_noop_actions(state)
+                env_actions = agent.policy_to_env_actions(
+                    expert_batch.policy_actions
+                )
+            else:
+                expert_batch = provider.get_actions(
+                    len(episodes), step
+                )
+                env_actions = codec.batch_policy_to_env_actions(
+                    expert_batch.policy_actions
+                )
+            last_expert_metadata = expert_batch.metadata
+            _global_state, rewards, terminated, truncated, info = env.step(
+                env_actions
+            )
+            done = bool(terminated or truncated)
+
+            reward_steps.append(float(np.mean(rewards)))
+            latencies.append(float(np.mean(info.get("total_latencies", [0.0]))))
+            energies.append(float(np.mean(info.get("total_energies", [0.0]))))
+
+            if done:
+                break
+
+        episodes.append(
+            _episode_metrics(
+                reward_steps,
+                latencies,
+                energies,
+                info.get("task_completion_stats", {}),
+            )
+        )
+
+    return _finalize_run(
+        run_dir,
+        manifest,
+        episodes,
+        losses=[],
+        extra={
+            "llm_only": True,
+            "online_api_calls": 0,
+            "hybrid_action": True,
+            "num_edges": num_edges,
+            "cache_stats": (
+                provider.cache.stats()
+                if isinstance(provider, CachedExpertProvider)
+                else {}
+            ),
+            "cache_runtime_stats": (
+                agent.runtime_stats if agent is not None else {}
+            ),
+            "expert": last_expert_metadata,
+            "scenario_bank_id": scenario_bank_id,
+            "scenario_bank_frozen": scenario_bank_frozen,
+            "scenario_bank_path": (
+                str(scenario_bank_path)
+                if scenario_bank_path
+                else None
+            ),
+            "scenario_bank_sha256": scenario_bank_sha256,
+            "scenario_count": len(scenarios),
+            "scenario_construction_seed": construction_seed,
+            "environment_fingerprint": ei_environment_fingerprint(config),
+            "require_full_cache_coverage": require_full_cache_coverage,
+            "cache_coverage_complete": (
+                agent.runtime_stats["misses"] == 0
+                if agent is not None
+                else None
+            ),
+        },
+    )
+
+
 def run_baseline(
     algorithm: str,
     config: dict[str, Any],
@@ -708,6 +995,8 @@ def run_baseline(
     command = command or " ".join(sys.argv)
     if algorithm == "greedy_min_cost":
         return _run_greedy_min_cost(config, seed, output_root, command)
+    if algorithm == "llm_only":
+        return _run_llm_only(config, seed, output_root, command)
     if algorithm in ("maddpg", "legacy_maps", "maps", "maps_no_annealing"):
         return _run_maddpg_family(algorithm, config, seed, output_root, command)
     return _run_on_policy(algorithm, config, seed, output_root, command)

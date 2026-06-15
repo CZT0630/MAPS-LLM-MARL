@@ -99,8 +99,11 @@ EI 版本不重构为 Letter 路线，也不追求新的通用 LLM-RL 理论。�
 
 - `legacy_maps` 仍使用合成固定专家缓存。
 - C1 已统一为 `3+E` 策略动作，但正式实验和冻结场景尚未开始。
-- C2 已实现 mixed distillation、分项记录和 environment-step 三阶段退火，但当前专家
-  仍是合成固定缓存，`0.8/0.15/0` 仍只作为 pilot 初值。
+- C2 已实现 mixed distillation、分项记录和 environment-step 三阶段退火；
+  smoke 仍使用合成固定缓存，正式 state-keyed cache artifact 尚未生成，
+  `0.8/0.15/0` 仍只作为 pilot 初值。
+- C3 的 prompt、联合状态哈希、严格 parser、可审计 cache、共享 provider 和
+  LLM-only runner 已实现，但尚无真实 MiMo cache 与配套冻结场景产物。
 - 当前指标主要用于 smoke test，尚未完整输出 P95、DVR、TCR、AUC 和 threshold。
 - 当前训练与测试尚未使用冻结 scenario bank。
 
@@ -113,8 +116,10 @@ EI 版本不重构为 Letter 路线，也不追求新的通用 LLM-RL 理论。�
 | MAPPO categorical ES head | **done** | yes |
 | Partition squared L2 + edge CE | **done** | yes |
 | Fixed/annealed/no-LLM 三种 MAPS 配置 | **done** | yes |
-| 真实 state-keyed expert cache | pending | yes |
-| LLM-only evaluator | pending | yes |
+| state-keyed cache 代码与审计校验 | **done** | yes |
+| 真实 MiMo cache artifact | pending | yes |
+| LLM-only evaluator 代码 | **done** | yes |
+| LLM-only 冻结场景评估证据 | pending | yes |
 | Drain horizon 和逐任务记录 | pending | yes |
 | P95、DVR、TCR、AUC、threshold | pending | yes |
 | 10/20/30/50 UE scenario bank | pending | yes |
@@ -349,6 +354,45 @@ paper_evidence=true
 - cache 可审计且状态哈希稳定。
 - parser success、valid action 和 fallback rate 可统计。
 - LLM-only 可在冻结 scenario bank 上独立评估。
+
+**C3 工程实现审计（2026-06-16，尚未达到停止条件）：**
+
+已新增/修改文件：
+
+```text
+llm_assistant/ei_prompt_builder.py        (新建: EI-v1 prompt builder)
+llm_assistant/ei_state.py                 (新建: 联合决策状态提取)
+llm_assistant/expert_cache.py             (新建: ExpertCache, CacheEntry, hash_state)
+llm_assistant/cached_expert_provider.py   (新建: CachedExpertProvider)
+llm_assistant/__init__.py                 (导出新类)
+baselines/llm_only.py                     (新建: LLMOnlyAgent)
+scripts/generate_expert_cache.py          (新建: API cache 生成脚本)
+experiments/runner.py                     (新增 llm_only 算法支持)
+config.yaml                               (新增 llm_only 配置段)
+tests/test_expert_cache.py                (新增 C3 单元与集成测试)
+```
+
+验证结果：
+
+- C3 定向测试覆盖 cache、prompt、严格 parser、共享 provider 和 runner 集成。
+- ExpertCache 支持原子 save/load，并在加载时验证 raw response hash、模型、
+  temperature、状态键和 parser/fallback 一致性。
+- hash_state 使用完整 SHA-256、稳定规范化，并保留 `1e-9` 等小量纲物理参数。
+- CachedExpertProvider 使用联合状态键，区分 cache miss、parser fallback 与无任务时隙。
+- LLMOnlyAgent 输出 [3+E] policy action，fallback 为 all-local。
+- add_from_api_response 严格检查 partition 和 ES id，按实际待决策 UE 统计
+  valid/partial/failed。
+- generate_expert_cache.py 脚本可通过 `python -m scripts.generate_expert_cache` 运行。
+- 生成脚本同时输出与 cache 轨迹配套的冻结场景清单。
+- llm_only 可通过统一 runner 接口运行，记录场景文件 SHA-256，并可强制零 cache miss。
+- API key 不写入 cache、config 或 manifest。
+
+尚未满足的 C3 停止条件：
+
+- 使用真实 API 生成至少 500 个 state 的 expert cache。
+- 冻结生成脚本输出的配套 scenario bank，并保存 cache/bank SHA-256。
+- 在真实产物上验证 parser success、valid action、fallback 和 cache coverage。
+- 运行 LLM-only 冻结场景评估，确认 `online_api_calls=0` 且 cache miss 为 0。
 
 ### C4：正式指标与评估协议
 
@@ -888,7 +932,8 @@ loss、queue backlog、per-node utilization、device energy、expert similarity 
 
 当前最先执行的不是继续增加 baseline，也不是开始跑正式大实验，而是：
 
-> 实现 C1 hybrid action codec，并同时修复 MADDPG 与 MAPPO 的离散 ES head。
+> 完成 C3 真实 MiMo cache 生成与配套冻结场景评估，确认 parser/action validity、
+> fallback rate 和 cache coverage 后，再进入 C4。
 
-在 C1-C4 完成前，现有 `legacy_maps`、Greedy smoke 和 Phase 2 smoke 只能证明工程路径
-可运行，不能进入 EI 论文结果。
+在 C3-C4 完成前，现有 `legacy_maps`、Greedy smoke、Phase 2 smoke 和合成 C3
+集成测试只能证明工程路径可运行，不能进入 EI 论文结果。

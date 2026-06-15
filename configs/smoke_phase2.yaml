@@ -115,12 +115,16 @@ llm_maddpg:
   train_frequency: 1
   batch_size: 2
   eta_edge: 1.0
-  expert_cache: "fixtures/legacy_expert_cache.json"
   initial_llm_distill_weight: 0.8
   constant_llm_distill_weight: 0.15
   stage1_end_progress: 0.3
   stage2_end_progress: 0.7
   exploration_episodes: 10
+
+expert_cache:
+  format: "fixed"
+  path: "fixtures/legacy_expert_cache.json"
+  fallback_policy: "all_local"
 
 mappo:
   lr_actor: 0.0003

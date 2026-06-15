@@ -39,7 +39,17 @@ is not paper evidence.
 
 For formal experiments:
 
-1. Generate state-conditioned expert responses through the real API.
+1. Generate state-conditioned expert responses through the real API with an
+   explicit frozen Phase-2 environment configuration:
+
+   ```powershell
+   python -m scripts.generate_expert_cache `
+     --env-config <frozen-phase2-config.yaml> `
+     --num-samples 500
+   ```
+
+   The command writes both `artifacts/ei/expert_cache.json` and the matching
+   `artifacts/ei/expert_scenario_bank.json`.
 2. Save the raw response, state hash, prompt version, returned model, request
    ID, token usage, query latency, parser status, and parsed action.
 3. Freeze the cache and share it across MiMo-V2.5 (LLM-only),

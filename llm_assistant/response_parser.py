@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -52,11 +53,13 @@ class ResponseParser:
         num_devices: int,
         num_edges: int,
         num_clouds: int = 1,
+        strict_constraints: bool = False,
     ) -> tuple[list[dict[str, Any]], ParseMetadata]:
         del num_clouds
         try:
             decoded = ResponseParser._decode(response)
             by_device = {}
+            duplicate_devices = set()
             for item in decoded:
                 if not isinstance(item, dict):
                     continue
@@ -64,9 +67,12 @@ class ResponseParser:
                 if device_id is None:
                     continue
                 try:
-                    by_device[int(device_id)] = item
+                    parsed_device_id = int(device_id)
                 except (TypeError, ValueError, OverflowError):
                     continue
+                if parsed_device_id in by_device:
+                    duplicate_devices.add(parsed_device_id)
+                by_device[parsed_device_id] = item
 
             strategies = []
             fallback_count = 0
@@ -74,11 +80,23 @@ class ResponseParser:
             missing = object()
             for device_id in range(num_devices):
                 item = by_device.get(device_id)
-                if item is None:
+                if item is None or device_id in duplicate_devices:
                     fallback_count += 1
                     valid_mask.append(False)
                     strategies.append(ResponseParser._fallback(device_id))
                     continue
+                if strict_constraints:
+                    raw_device_id = item.get(
+                        "device_id", item.get("ue_id")
+                    )
+                    if (
+                        not isinstance(raw_device_id, int)
+                        or isinstance(raw_device_id, bool)
+                    ):
+                        fallback_count += 1
+                        valid_mask.append(False)
+                        strategies.append(ResponseParser._fallback(device_id))
+                        continue
 
                 partition = item.get("partition", {})
                 if not isinstance(partition, dict):
@@ -105,11 +123,7 @@ class ResponseParser:
                     strategies.append(ResponseParser._fallback(device_id))
                     continue
                 try:
-                    ratios = [
-                        max(0.0, float(local)),
-                        max(0.0, float(edge)),
-                        max(0.0, float(cloud)),
-                    ]
+                    ratios = [float(local), float(edge), float(cloud)]
                     total = sum(ratios)
                     target_edge = int(target)
                 except (TypeError, ValueError, OverflowError):
@@ -117,12 +131,45 @@ class ResponseParser:
                     valid_mask.append(False)
                     strategies.append(ResponseParser._fallback(device_id))
                     continue
-                if total <= 1e-12:
+                if not all(math.isfinite(value) for value in ratios):
                     fallback_count += 1
                     valid_mask.append(False)
                     strategies.append(ResponseParser._fallback(device_id))
                     continue
-                ratios = [value / total for value in ratios]
+                if strict_constraints:
+                    raw_ratios = (local, edge, cloud)
+                    ratio_types_valid = all(
+                        isinstance(value, (int, float))
+                        and not isinstance(value, bool)
+                        for value in raw_ratios
+                    )
+                    target_is_integer = (
+                        isinstance(target, int)
+                        and not isinstance(target, bool)
+                    )
+                    ratios_valid = (
+                        ratio_types_valid
+                        and all(0.0 <= value <= 1.0 for value in ratios)
+                        and math.isclose(total, 1.0, rel_tol=0.0, abs_tol=1e-5)
+                    )
+                    target_valid = (
+                        target_is_integer
+                        and 0 <= target_edge < num_edges
+                    )
+                    if not ratios_valid or not target_valid:
+                        fallback_count += 1
+                        valid_mask.append(False)
+                        strategies.append(ResponseParser._fallback(device_id))
+                        continue
+                else:
+                    ratios = [max(0.0, value) for value in ratios]
+                    total = sum(ratios)
+                    if total <= 1e-12:
+                        fallback_count += 1
+                        valid_mask.append(False)
+                        strategies.append(ResponseParser._fallback(device_id))
+                        continue
+                    ratios = [value / total for value in ratios]
                 valid_mask.append(True)
                 strategies.append(
                     {
@@ -161,9 +208,14 @@ class ResponseParser:
         num_devices: int,
         num_edges: int,
         num_clouds: int = 1,
+        strict_constraints: bool = False,
     ) -> list[dict[str, Any]]:
         strategies, _ = ResponseParser.parse_with_metadata(
-            response, num_devices, num_edges, num_clouds
+            response,
+            num_devices,
+            num_edges,
+            num_clouds,
+            strict_constraints=strict_constraints,
         )
         return strategies
 

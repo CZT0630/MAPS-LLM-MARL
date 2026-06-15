@@ -128,7 +128,6 @@ llm_maddpg:
   max_steps: 100
   train_frequency: 20
   eta_edge: 1.0
-  expert_cache: "fixtures/legacy_expert_cache.json"
 
   # Distillation weight 配置（pilot 初值；正式训练前检查 manifest.distillation.loss_scale）
   initial_llm_distill_weight: 0.8        # 退火第一阶段权重 (progress < stage1_end_progress)
@@ -141,6 +140,12 @@ llm_maddpg:
 
   # 早期探索增强
   exploration_episodes: 150
+
+# Shared by MAPS-w/o-Annealing, MAPS, and LLM-only.
+expert_cache:
+  format: "state_keyed"
+  path: "artifacts/ei/expert_cache.json"
+  fallback_policy: "all_local"
 
 mappo:
   lr_actor: 0.0003
@@ -168,6 +173,14 @@ happo:
   batch_size: 64
   max_episodes: 200
   max_steps: 200
+
+# LLM-only evaluator (no training, uses state-keyed expert cache)
+llm_only:
+  max_episodes: 200
+  max_steps: 200
+  require_full_cache_coverage: true
+  # Set this to a frozen bank file before formal evaluation.
+  scenario_bank: null
 
 # LLM configuration for the EI branch. The credential is read from the
 # MIMO_API_KEY environment variable and is never stored in this file.

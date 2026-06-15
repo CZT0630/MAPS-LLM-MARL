@@ -115,6 +115,7 @@ class LLMClient:
             "display_name": self.display_name,
             "requested_model": self.model_name,
             "returned_model": body.get("model"),
+            "temperature": self.temperature,
             "request_id": (
                 body.get("id")
                 or response.headers.get("x-request-id")

@@ -77,6 +77,7 @@ def test_mimo_client_uses_environment_credential_and_chat_payload(
     assert captured["json"]["max_completion_tokens"] == 1024
     assert captured["json"]["thinking"] == {"type": "disabled"}
     assert client.last_metadata["returned_model"] == "mimo-v2.5"
+    assert client.last_metadata["temperature"] == 0.0
     assert client.last_metadata["usage"]["total_tokens"] == 16
 
 
