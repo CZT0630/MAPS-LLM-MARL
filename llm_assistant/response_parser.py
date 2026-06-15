@@ -13,6 +13,7 @@ class ParseMetadata:
     valid: bool
     source_count: int
     fallback_count: int
+    valid_mask: tuple[bool, ...]
     error: str | None = None
 
 
@@ -62,39 +63,76 @@ class ResponseParser:
                 device_id = item.get("device_id", item.get("ue_id"))
                 if device_id is None:
                     continue
-                by_device[int(device_id)] = item
+                try:
+                    by_device[int(device_id)] = item
+                except (TypeError, ValueError, OverflowError):
+                    continue
 
             strategies = []
             fallback_count = 0
+            valid_mask = []
+            missing = object()
             for device_id in range(num_devices):
                 item = by_device.get(device_id)
                 if item is None:
                     fallback_count += 1
+                    valid_mask.append(False)
                     strategies.append(ResponseParser._fallback(device_id))
                     continue
 
                 partition = item.get("partition", {})
-                local = item.get("local_ratio", partition.get("local", 0.0))
-                edge = item.get("edge_ratio", partition.get("edge", 0.0))
-                cloud = item.get("cloud_ratio", partition.get("cloud", 0.0))
+                if not isinstance(partition, dict):
+                    partition = {}
+                local = item.get(
+                    "local_ratio", partition.get("local", missing)
+                )
+                edge = item.get(
+                    "edge_ratio", partition.get("edge", missing)
+                )
+                cloud = item.get(
+                    "cloud_ratio", partition.get("cloud", missing)
+                )
                 target = item.get(
                     "target_edge",
-                    item.get("target_edge_server", item.get("edge_id", 0)),
+                    item.get(
+                        "target_edge_server",
+                        item.get("edge_id", missing),
+                    ),
                 )
-                ratios = [max(0.0, float(local)), max(0.0, float(edge)), max(0.0, float(cloud))]
-                total = sum(ratios)
+                if missing in (local, edge, cloud, target):
+                    fallback_count += 1
+                    valid_mask.append(False)
+                    strategies.append(ResponseParser._fallback(device_id))
+                    continue
+                try:
+                    ratios = [
+                        max(0.0, float(local)),
+                        max(0.0, float(edge)),
+                        max(0.0, float(cloud)),
+                    ]
+                    total = sum(ratios)
+                    target_edge = int(target)
+                except (TypeError, ValueError, OverflowError):
+                    fallback_count += 1
+                    valid_mask.append(False)
+                    strategies.append(ResponseParser._fallback(device_id))
+                    continue
                 if total <= 1e-12:
                     fallback_count += 1
+                    valid_mask.append(False)
                     strategies.append(ResponseParser._fallback(device_id))
                     continue
                 ratios = [value / total for value in ratios]
+                valid_mask.append(True)
                 strategies.append(
                     {
                         "device_id": device_id,
                         "local_ratio": ratios[0],
                         "edge_ratio": ratios[1],
                         "cloud_ratio": ratios[2],
-                        "target_edge": max(0, min(num_edges - 1, int(target))),
+                        "target_edge": max(
+                            0, min(num_edges - 1, target_edge)
+                        ),
                     }
                 )
 
@@ -102,6 +140,7 @@ class ResponseParser:
                 valid=bool(decoded) and fallback_count == 0,
                 source_count=len(decoded),
                 fallback_count=fallback_count,
+                valid_mask=tuple(valid_mask),
             )
             return strategies, metadata
         except (TypeError, ValueError, OverflowError) as exc:
@@ -112,6 +151,7 @@ class ResponseParser:
                 valid=False,
                 source_count=0,
                 fallback_count=num_devices,
+                valid_mask=tuple(False for _ in range(num_devices)),
                 error=str(exc),
             )
 

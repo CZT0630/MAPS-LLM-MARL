@@ -1,5 +1,7 @@
 {
   "schema_version": "1.0",
+  "cache_version": "legacy-smoke-v1",
+  "prompt_version": "legacy-smoke-v1",
   "source": "synthetic_fixed_cache_for_phase1_smoke_only",
   "paper_evidence": false,
   "default": {
@@ -24,6 +26,55 @@
         "edge_ratio": 0.35,
         "cloud_ratio": 0.35,
         "target_edge": 0
+      },
+      {
+        "device_id": 3,
+        "local_ratio": 0.40,
+        "edge_ratio": 0.40,
+        "cloud_ratio": 0.20,
+        "target_edge": 2
+      },
+      {
+        "device_id": 4,
+        "local_ratio": 0.15,
+        "edge_ratio": 0.60,
+        "cloud_ratio": 0.25,
+        "target_edge": 3
+      },
+      {
+        "device_id": 5,
+        "local_ratio": 0.35,
+        "edge_ratio": 0.30,
+        "cloud_ratio": 0.35,
+        "target_edge": 4
+      },
+      {
+        "device_id": 6,
+        "local_ratio": 0.20,
+        "edge_ratio": 0.45,
+        "cloud_ratio": 0.35,
+        "target_edge": 1
+      },
+      {
+        "device_id": 7,
+        "local_ratio": 0.30,
+        "edge_ratio": 0.40,
+        "cloud_ratio": 0.30,
+        "target_edge": 2
+      },
+      {
+        "device_id": 8,
+        "local_ratio": 0.25,
+        "edge_ratio": 0.35,
+        "cloud_ratio": 0.40,
+        "target_edge": 0
+      },
+      {
+        "device_id": 9,
+        "local_ratio": 0.45,
+        "edge_ratio": 0.30,
+        "cloud_ratio": 0.25,
+        "target_edge": 4
       }
     ]
   }

@@ -99,8 +99,8 @@ EI 版本不重构为 Letter 路线，也不追求新的通用 LLM-RL 理论。�
 
 - `legacy_maps` 仍使用合成固定专家缓存。
 - C1 已统一为 `3+E` 策略动作，但正式实验和冻结场景尚未开始。
-- mixed distillation 的损失函数已接入 MADDPG；C2 的分项记录、权重配置和退火仍未完成。
-- 当前 `distill_weight` 是固定值，没有论文所需的退火。
+- C2 已实现 mixed distillation、分项记录和 environment-step 三阶段退火，但当前专家
+  仍是合成固定缓存，`0.8/0.15/0` 仍只作为 pilot 初值。
 - 当前指标主要用于 smoke test，尚未完整输出 P95、DVR、TCR、AUC 和 threshold。
 - 当前训练与测试尚未使用冻结 scenario bank。
 
@@ -111,8 +111,8 @@ EI 版本不重构为 Letter 路线，也不追求新的通用 LLM-RL 理论。�
 | Hybrid action codec | **done** | yes |
 | MADDPG mixed-action actor/critic/replay | **done** | yes |
 | MAPPO categorical ES head | **done** | yes |
-| Partition MSE + edge CE | partial：loss 已实现，C2 记录/配置待完成 | yes |
-| Fixed/annealed/no-LLM 三种 MAPS 配置 | pending | yes |
+| Partition squared L2 + edge CE | **done** | yes |
+| Fixed/annealed/no-LLM 三种 MAPS 配置 | **done** | yes |
 | 真实 state-keyed expert cache | pending | yes |
 | LLM-only evaluator | pending | yes |
 | Drain horizon 和逐任务记录 | pending | yes |

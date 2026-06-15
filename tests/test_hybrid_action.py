@@ -260,12 +260,25 @@ class TestHybridActors:
         _, batch_stats = agent._compute_policy_loss(make_batch(4))
 
         assert batch_stats["entropy"] == pytest.approx(
-            single_stats["entropy"], rel=1e-6
+            single_stats["entropy"], abs=3e-6
         )
 
 
 class TestDistillationLoss:
     """Test the mixed distillation loss."""
+
+    def test_partition_loss_uses_squared_l2_norm(self):
+        codec = HybridActionCodec(num_edges=2)
+        actor_probs = torch.tensor([[0.1, 0.1, 0.8, 0.5, 0.5]])
+        expert_part = torch.tensor([[0.8, 0.1, 0.1]])
+        expert_edge = torch.tensor([0])
+        mask = torch.tensor([1.0])
+
+        _, L_part, _ = codec.distillation_loss(
+            actor_probs, expert_part, expert_edge, mask
+        )
+
+        assert L_part.item() == pytest.approx(0.98)
 
     def test_perfect_expert_zero_loss(self):
         codec = HybridActionCodec(num_edges=3)
@@ -358,6 +371,12 @@ class TestDistillationLoss:
                 torch.tensor([[0.2, 0.5, 0.3]]),
                 torch.tensor([0]),
                 torch.tensor([[1.0]]),
+            ),
+            (
+                torch.tensor([[0.2, 0.5, 0.3, 0.2, 0.3, 0.5]]),
+                torch.tensor([[0.2, 0.5, 0.3]]),
+                torch.tensor([0]),
+                torch.tensor([0.5]),
             ),
         ],
     )

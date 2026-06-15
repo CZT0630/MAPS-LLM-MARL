@@ -120,28 +120,25 @@ reward:
   deadline_penalty: 5.0  # 截止时间惩罚 (任务失败时的额外惩罚)
 
 # LLM+MADDPG算法配置
+# 用于 maps (退火) 和 maps_no_annealing (固定权重) 模式。
+# maddpg 模式不使用蒸馏 (lambda=0)。
 llm_maddpg:
-  # 继承MADDPG基础配置
   inherit_from: "maddpg"
-  
-  # LLM特定训练参数（简化）
   max_episodes: 300
   max_steps: 100
   train_frequency: 20
-  
-  # LLM指导策略
-  llm_episode_interval: 5
-  llm_distill_weight: 0.1   # 🆕 LLM知识蒸馏权重（固定权重模式下使用）
-  
-  # 🆕 三阶段退火策略配置
-  use_annealing: true                     # 启用退火策略
-  initial_llm_distill_weight: 0.5        # 初始蒸馏权重（简化）
-  constant_llm_distill_weight: 0.15      # 恒定期蒸馏权重（平衡探索与利用）
-  final_llm_distill_weight: 0.0          # 最终蒸馏权重（完全自主学习）
-  stage1_end_episode: 100
-  stage2_end_episode: 250
-  # 阶段3从701轮开始，在100轮内快速退火到0
-  
+  eta_edge: 1.0
+  expert_cache: "fixtures/legacy_expert_cache.json"
+
+  # Distillation weight 配置（pilot 初值；正式训练前检查 manifest.distillation.loss_scale）
+  initial_llm_distill_weight: 0.8        # 退火第一阶段权重 (progress < stage1_end_progress)
+  constant_llm_distill_weight: 0.15      # 退火第二阶段权重 / 固定模式权重
+  # 退火第三阶段: lambda = 0 (progress >= stage2_end_progress)
+
+  # 退火进度阈值 (基于 environment-step progress ∈ [0, 1])
+  stage1_end_progress: 0.3
+  stage2_end_progress: 0.7
+
   # 早期探索增强
   exploration_episodes: 150
 
@@ -213,26 +210,6 @@ training:
   early_stopping_patience: 100  # 早停耐心值（100轮无改善则停止）
   convergence_threshold: 0.01   # 🆕 收敛阈值（奖励变化小于此值认为收敛）
   
-  # 训练模式选择
-  algorithms:
-    maddpg:
-      enabled: true
-      max_episodes: 300
-      max_steps: 100
-      train_frequency: 20
-      
-    llm_maddpg:
-      enabled: true  
-      max_episodes: 300
-      max_steps: 100
-      train_frequency: 20
-      
-    llm_only:
-      enabled: true
-      max_episodes: 100     # 🆕 纯LLM算法episode数
-      max_steps: 10
-      train_frequency: null  # 纯LLM不需要训练频率
-
 # 奖励函数配置
   reward:
   # 奖励权重

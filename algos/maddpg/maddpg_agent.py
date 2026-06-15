@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Iterable
 
 import numpy as np
@@ -47,6 +48,10 @@ class MADDPGAgent:
         self.eta_edge = float(
             kwargs.get("eta_edge", config.get("eta_edge", 1.0))
         )
+        if not math.isfinite(self.distill_weight) or self.distill_weight < 0.0:
+            raise ValueError("distill_weight must be finite and non-negative")
+        if not math.isfinite(self.eta_edge) or self.eta_edge < 0.0:
+            raise ValueError("eta_edge must be finite and non-negative")
 
         self.actor = Actor(self.state_dim, self.num_edges).to(self.device)
         self.actor_target = Actor(self.state_dim, self.num_edges).to(self.device)
@@ -131,7 +136,29 @@ class MADDPGAgent:
         self,
         batch: dict[str, np.ndarray],
         all_agents: list["MADDPGAgent"],
+        lambda_distill: float | None = None,
     ) -> dict[str, float]:
+        """Run one actor-critic update step.
+
+        Parameters
+        ----------
+        batch : dict
+            Joint replay batch with states, actions, rewards, etc.
+        all_agents : list
+            All MADDPG agents for centralized critic.
+        lambda_distill : float or None
+            Override distillation weight for this step.  When *None*, falls
+            back to ``self.distill_weight``.  When ``0.0`` the distillation
+            loss is not computed and produces no actor gradients.
+        """
+        lam = (
+            float(lambda_distill)
+            if lambda_distill is not None
+            else self.distill_weight
+        )
+        if not math.isfinite(lam) or lam < 0.0:
+            raise ValueError("lambda_distill must be finite and non-negative")
+
         states = torch.as_tensor(
             batch["states"], dtype=torch.float32, device=self.device
         )
@@ -184,19 +211,24 @@ class MADDPGAgent:
             flat_states, joint_actions.reshape(batch_size, -1)
         ).mean()
 
-        # --- Distillation loss (mixed: partition MSE + edge CE) ---
-        mask = expert_mask[:, self.agent_idx]
-        if self.distill_weight > 0.0 and torch.any(mask > 0):
-            expert_part = expert_actions[:, self.agent_idx, :3]
-            expert_edge = expert_actions[
-                :, self.agent_idx, 3:
-            ].argmax(dim=-1)
-            distill_loss, _, _ = self.codec.distillation_loss(
-                own_action, expert_part, expert_edge, mask, self.eta_edge
-            )
-        else:
-            distill_loss = torch.zeros((), device=self.device)
-        actor_loss = policy_loss + self.distill_weight * distill_loss
+        # --- Distillation loss (partition squared L2 + edge CE) ---
+        # When lambda is 0, skip entirely so no distillation gradients flow.
+        L_part_val = 0.0
+        L_edge_val = 0.0
+        distill_loss = torch.zeros((), device=self.device)
+        if lam > 0.0:
+            mask = expert_mask[:, self.agent_idx]
+            if torch.any(mask > 0):
+                expert_part = expert_actions[:, self.agent_idx, :3]
+                expert_edge = expert_actions[
+                    :, self.agent_idx, 3:
+                ].argmax(dim=-1)
+                distill_loss, L_part_t, L_edge_t = self.codec.distillation_loss(
+                    own_action, expert_part, expert_edge, mask, self.eta_edge
+                )
+                L_part_val = float(L_part_t.detach().cpu())
+                L_edge_val = float(L_edge_t.detach().cpu())
+        actor_loss = policy_loss + lam * distill_loss
 
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
@@ -214,6 +246,10 @@ class MADDPGAgent:
             "actor_loss": float(actor_loss.detach().cpu()),
             "policy_loss": float(policy_loss.detach().cpu()),
             "distill_loss": float(distill_loss.detach().cpu()),
+            "L_distill": float(distill_loss.detach().cpu()),
+            "L_part": L_part_val,
+            "L_edge": L_edge_val,
+            "lambda_distill": lam,
         }
 
     def _soft_update(self, target: torch.nn.Module, source: torch.nn.Module) -> None:
@@ -223,7 +259,7 @@ class MADDPGAgent:
             target_parameter.data.mul_(1.0 - self.tau)
             target_parameter.data.add_(self.tau * source_parameter.data)
 
-    def save_model(self, path) -> None:
+    def save_model(self, path, metadata: dict | None = None) -> None:
         torch.save(
             {
                 "actor": self.actor.state_dict(),
@@ -234,6 +270,9 @@ class MADDPGAgent:
                 "critic_optimizer": self.critic_optimizer.state_dict(),
                 "training_count": self.training_count,
                 "num_edges": self.num_edges,
+                "distill_weight": self.distill_weight,
+                "eta_edge": self.eta_edge,
+                "metadata": metadata or {},
             },
             path,
         )
@@ -247,3 +286,7 @@ class MADDPGAgent:
         self.actor_optimizer.load_state_dict(checkpoint["actor_optimizer"])
         self.critic_optimizer.load_state_dict(checkpoint["critic_optimizer"])
         self.training_count = int(checkpoint.get("training_count", 0))
+        self.distill_weight = float(
+            checkpoint.get("distill_weight", self.distill_weight)
+        )
+        self.eta_edge = float(checkpoint.get("eta_edge", self.eta_edge))

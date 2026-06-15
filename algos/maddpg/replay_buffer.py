@@ -86,6 +86,15 @@ class JointReplayBuffer:
                         f"expert_mask must have shape [{states.shape[0]}], "
                         f"got {expert_mask_array.shape}"
                     )
+                if not np.isfinite(expert_mask_array).all():
+                    raise ValueError("expert_mask contains non-finite values")
+                if not np.all(
+                    (expert_mask_array == 0.0)
+                    | (expert_mask_array == 1.0)
+                ):
+                    raise ValueError(
+                        "expert_mask values must be binary 0 or 1"
+                    )
 
         self.buffer.append(
             {

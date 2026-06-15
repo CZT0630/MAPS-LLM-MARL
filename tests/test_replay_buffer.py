@@ -101,3 +101,33 @@ def test_joint_replay_buffer_rejects_mask_without_expert_actions():
             done=False,
             expert_mask=np.ones(2, dtype=np.float32),
         )
+
+
+@pytest.mark.parametrize(
+    "expert_mask",
+    [
+        np.array([1.0, 0.5], dtype=np.float32),
+        np.array([1.0, np.nan], dtype=np.float32),
+    ],
+)
+def test_joint_replay_buffer_rejects_non_binary_expert_mask(expert_mask):
+    buffer = JointReplayBuffer(10, num_edges=3)
+    states = np.zeros((2, 5), dtype=np.float32)
+    actions = np.tile(
+        np.array(
+            [1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+            dtype=np.float32,
+        ),
+        (2, 1),
+    )
+
+    with pytest.raises(ValueError):
+        buffer.add(
+            states=states,
+            actions=actions,
+            rewards=np.zeros(2, dtype=np.float32),
+            next_states=states,
+            done=False,
+            expert_actions=actions,
+            expert_mask=expert_mask,
+        )

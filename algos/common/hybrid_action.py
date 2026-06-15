@@ -277,7 +277,7 @@ class HybridActionCodec:
         expert_mask: torch.Tensor,
         eta_edge: float = 1.0,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Compute mixed distillation loss: partition MSE + edge CE.
+        """Compute mixed distillation loss: partition squared L2 + edge CE.
 
         Parameters
         ----------
@@ -295,7 +295,7 @@ class HybridActionCodec:
         Returns
         -------
         total_distill : Tensor scalar
-        L_part : Tensor scalar   (partition MSE)
+        L_part : Tensor scalar   (partition squared L2)
         L_edge : Tensor scalar   (edge CE)
         """
         self.validate_policy_tensor(actor_probs, name="actor_probs")
@@ -348,19 +348,19 @@ class HybridActionCodec:
         mask = expert_mask.float()
         if not torch.isfinite(mask).all():
             raise ValueError("expert_mask contains non-finite values")
-        if torch.any(mask < 0) or torch.any(mask > 1):
-            raise ValueError("expert_mask values must be in [0, 1]")
+        if not torch.all((mask == 0) | (mask == 1)):
+            raise ValueError("expert_mask values must be binary 0 or 1")
         eta = float(eta_edge)
         if not math.isfinite(eta) or eta < 0:
             raise ValueError("eta_edge must be finite and non-negative")
 
         n_valid = mask.sum().clamp(min=1.0)
 
-        # Partition MSE
+        # Partition squared L2 distance
         pred_partition = actor_probs[:, :3]
         per_sample_part = F.mse_loss(
             pred_partition, expert_partition, reduction="none"
-        ).mean(dim=-1)
+        ).sum(dim=-1)
         L_part = (per_sample_part * mask).sum() / n_valid
 
         # Edge CE

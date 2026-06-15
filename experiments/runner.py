@@ -13,6 +13,7 @@ from typing import Any
 import numpy as np
 import torch
 
+from LLM4RL.algos.common.annealing import AnnealingSchedule, FixedSchedule
 from LLM4RL.algos.common.hybrid_action import HybridActionCodec
 from LLM4RL.algos.common.trajectory_buffer import TrajectoryBuffer
 from LLM4RL.algos.happo.happo_agent import HAPPOAgent
@@ -26,7 +27,22 @@ from LLM4RL.utils.run_manifest import build_manifest, write_manifest
 from LLM4RL.utils.seed import set_global_seed
 
 
-SUPPORTED_ALGORITHMS = ("maddpg", "legacy_maps", "mappo", "happo", "greedy_min_cost")
+SUPPORTED_ALGORITHMS = (
+    "maddpg",
+    "legacy_maps",
+    "maps",
+    "maps_no_annealing",
+    "mappo",
+    "happo",
+    "greedy_min_cost",
+)
+PHASE1_ALGORITHMS = (
+    "maddpg",
+    "legacy_maps",
+    "mappo",
+    "happo",
+    "greedy_min_cost",
+)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -110,7 +126,21 @@ def _run_maddpg_family(
     manifest = build_manifest(PROJECT_ROOT, algorithm, seed, config, command)
     write_manifest(run_dir / "run_manifest.json", manifest)
 
-    env = CloudEdgeDeviceEnv(config)
+    env_config = copy.deepcopy(config)
+    configured_max_steps = config.get("maddpg", {}).get("max_steps", 10)
+    if algorithm == "legacy_maps":
+        configured_max_steps = config.get("legacy_maps", {}).get(
+            "max_steps", configured_max_steps
+        )
+    elif algorithm in ("maps_no_annealing", "maps"):
+        configured_max_steps = config.get(algorithm, {}).get(
+            "max_steps",
+            config.get("llm_maddpg", {}).get(
+                "max_steps", configured_max_steps
+            ),
+        )
+    env_config.setdefault("maddpg", {})["max_steps"] = configured_max_steps
+    env = CloudEdgeDeviceEnv(env_config)
     num_edges = env.num_edges
     codec = HybridActionCodec(num_edges)
     state_dim = env.get_agent_state_dim()
@@ -122,10 +152,16 @@ def _run_maddpg_family(
     expert_provider = None
     expert_metadata: dict[str, Any] = {}
 
-    if algorithm == "legacy_maps":
+    # --- Expert provider and distillation schedule ---
+    schedule: AnnealingSchedule | FixedSchedule | None = None
+    if algorithm == "maddpg":
+        # The named MADDPG baseline is the no-distillation ablation.
+        algorithm_cfg["distill_weight"] = 0.0
+    elif algorithm == "legacy_maps":
         legacy_cfg = config.get("legacy_maps", {})
         algorithm_cfg.update(legacy_cfg)
         algorithm_cfg["distill_weight"] = float(legacy_cfg.get("distill_weight", 0.2))
+        schedule = FixedSchedule(lambda_value=algorithm_cfg["distill_weight"])
         cache_path = Path(legacy_cfg["expert_cache"])
         if not cache_path.is_absolute():
             cache_path = PROJECT_ROOT / cache_path
@@ -134,6 +170,56 @@ def _run_maddpg_family(
             num_agents=num_agents,
             num_edges=num_edges,
         )
+        expert_metadata = expert_provider.metadata
+    elif algorithm in ("maps_no_annealing", "maps"):
+        llm_cfg = copy.deepcopy(config.get("llm_maddpg", {}))
+        mode_cfg = copy.deepcopy(config.get(algorithm, {}))
+        algorithm_cfg.update(llm_cfg)
+        algorithm_cfg.update(mode_cfg)
+        cache_path = Path(
+            algorithm_cfg.get(
+                "expert_cache",
+                config.get("legacy_maps", {}).get(
+                    "expert_cache", "fixtures/legacy_expert_cache.json"
+                ),
+            )
+        )
+        if not cache_path.is_absolute():
+            cache_path = PROJECT_ROOT / cache_path
+        expert_provider = FixedCacheExpertProvider(
+            cache_path=cache_path,
+            num_agents=num_agents,
+            num_edges=num_edges,
+        )
+        expert_metadata = expert_provider.metadata
+
+    if algorithm == "maps_no_annealing":
+        algorithm_cfg["distill_weight"] = float(
+            algorithm_cfg.get("constant_llm_distill_weight", 0.15)
+        )
+        schedule = FixedSchedule(lambda_value=algorithm_cfg["distill_weight"])
+    elif algorithm == "maps":
+        schedule = AnnealingSchedule(
+            lambda_high=float(
+                algorithm_cfg.get("initial_llm_distill_weight", 0.8)
+            ),
+            lambda_low=float(
+                algorithm_cfg.get("constant_llm_distill_weight", 0.15)
+            ),
+            stage1_end=float(algorithm_cfg.get("stage1_end_progress", 0.3)),
+            stage2_end=float(algorithm_cfg.get("stage2_end_progress", 0.7)),
+        )
+        algorithm_cfg["distill_weight"] = schedule.lambda_high
+
+    schedule_metadata = (
+        schedule.to_dict()
+        if schedule is not None
+        else {
+            "type": "disabled",
+            "lambda_value": 0.0,
+            "progress_unit": "environment_steps",
+        }
+    )
 
     agents = [
         MADDPGAgent(
@@ -156,8 +242,18 @@ def _run_maddpg_family(
         )
     )
     max_steps = int(algorithm_cfg.get("max_steps", 10))
+    env.max_steps = max_steps
     train_frequency = int(algorithm_cfg.get("train_frequency", 1))
     batch_size = int(algorithm_cfg.get("batch_size", 64))
+    total_train_steps = max(1, episodes_count * max_steps)
+    exploration_episodes = int(
+        algorithm_cfg.get(
+            "exploration_episodes",
+            max(1, int(episodes_count * 0.7)),
+        )
+    )
+    if exploration_episodes < 0:
+        raise ValueError("exploration_episodes must be non-negative")
 
     episodes: list[dict[str, float]] = []
     losses: list[dict[str, float]] = []
@@ -180,7 +276,7 @@ def _run_maddpg_family(
                 [
                     agent.select_action(
                         states[index],
-                        add_noise=episode < max(1, int(episodes_count * 0.7)),
+                        add_noise=episode < exploration_episodes,
                     )
                     for index, agent in enumerate(agents)
                 ],
@@ -238,20 +334,43 @@ def _run_maddpg_family(
             )
 
             if len(replay) >= batch_size and global_step % train_frequency == 0:
+                # Compute annealing lambda for this training step.
+                progress = global_step / total_train_steps
+                current_lambda = (
+                    schedule.get_lambda(progress) if schedule is not None else 0.0
+                )
+
                 batch = replay.sample(batch_size)
-                step_losses = [agent.update(batch, agents) for agent in agents]
+                step_losses = [
+                    agent.update(batch, agents, lambda_distill=current_lambda)
+                    for agent in agents
+                ]
                 losses.append(
                     {
                         "global_step": global_step,
+                        "progress": round(progress, 6),
                         "critic_loss": float(
                             np.mean([item["critic_loss"] for item in step_losses])
                         ),
                         "actor_loss": float(
                             np.mean([item["actor_loss"] for item in step_losses])
                         ),
+                        "policy_loss": float(
+                            np.mean([item["policy_loss"] for item in step_losses])
+                        ),
                         "distill_loss": float(
                             np.mean([item["distill_loss"] for item in step_losses])
                         ),
+                        "L_distill": float(
+                            np.mean([item["L_distill"] for item in step_losses])
+                        ),
+                        "L_part": float(
+                            np.mean([item["L_part"] for item in step_losses])
+                        ),
+                        "L_edge": float(
+                            np.mean([item["L_edge"] for item in step_losses])
+                        ),
+                        "lambda_distill": float(current_lambda),
                     }
                 )
 
@@ -268,8 +387,67 @@ def _run_maddpg_family(
             )
         )
 
+    final_progress = min(global_step / total_train_steps, 1.0)
+    final_lambda = (
+        schedule.get_lambda(final_progress) if schedule is not None else 0.0
+    )
+    guided_losses = [
+        item for item in losses if item["lambda_distill"] > 0.0
+    ]
+    if guided_losses:
+        mean_abs_policy_loss = float(
+            np.mean([abs(item["policy_loss"]) for item in guided_losses])
+        )
+        mean_distill_loss = float(
+            np.mean([item["L_distill"] for item in guided_losses])
+        )
+        mean_weighted_distill = float(
+            np.mean(
+                [
+                    item["lambda_distill"] * item["L_distill"]
+                    for item in guided_losses
+                ]
+            )
+        )
+        loss_scale = {
+            "mean_abs_policy_loss": mean_abs_policy_loss,
+            "mean_L_distill": mean_distill_loss,
+            "mean_weighted_L_distill": mean_weighted_distill,
+            "guided_updates": len(guided_losses),
+            "distill_to_policy_ratio": (
+                mean_distill_loss / mean_abs_policy_loss
+                if mean_abs_policy_loss > 0.0
+                else None
+            ),
+            "weighted_distill_to_policy_ratio": (
+                mean_weighted_distill / mean_abs_policy_loss
+                if mean_abs_policy_loss > 0.0
+                else None
+            ),
+        }
+    else:
+        loss_scale = {}
+    distillation_metadata = {
+        "mode": algorithm,
+        "eta_edge": agents[0].eta_edge,
+        "schedule": schedule_metadata,
+        "expert": expert_metadata,
+        "global_step": global_step,
+        "planned_environment_steps": total_train_steps,
+        "exploration_episodes": exploration_episodes,
+        "final_progress": final_progress,
+        "final_lambda": final_lambda,
+        "loss_scale": loss_scale,
+    }
+    manifest["distillation"] = distillation_metadata
     for index, agent in enumerate(agents):
-        agent.save_model(run_dir / "models" / f"agent_{index}_final.pt")
+        agent.save_model(
+            run_dir / "models" / f"agent_{index}_final.pt",
+            metadata={
+                "algorithm": algorithm,
+                "distillation": distillation_metadata,
+            },
+        )
 
     return _finalize_run(
         run_dir,
@@ -284,6 +462,11 @@ def _run_maddpg_family(
             "hybrid_action": True,
             "num_edges": num_edges,
             "action_dim": action_dim,
+            "annealing": isinstance(schedule, AnnealingSchedule),
+            "schedule_type": (
+                type(schedule).__name__ if schedule is not None else None
+            ),
+            "distillation": distillation_metadata,
         },
     )
 
@@ -525,7 +708,7 @@ def run_baseline(
     command = command or " ".join(sys.argv)
     if algorithm == "greedy_min_cost":
         return _run_greedy_min_cost(config, seed, output_root, command)
-    if algorithm in ("maddpg", "legacy_maps"):
+    if algorithm in ("maddpg", "legacy_maps", "maps", "maps_no_annealing"):
         return _run_maddpg_family(algorithm, config, seed, output_root, command)
     return _run_on_policy(algorithm, config, seed, output_root, command)
 
@@ -609,7 +792,7 @@ def run_phase1_audit(
 ) -> dict[str, Any]:
     results = []
     for seed in seeds:
-        for algorithm in SUPPORTED_ALGORITHMS:
+        for algorithm in PHASE1_ALGORITHMS:
             try:
                 result = run_baseline(
                     algorithm=algorithm,
@@ -635,7 +818,7 @@ def run_phase1_audit(
             for result in results
             if result["algorithm"] == algorithm
         ]
-        for algorithm in SUPPORTED_ALGORITHMS
+        for algorithm in PHASE1_ALGORITHMS
     }
     try:
         reproducibility = _run_reproducibility_probe(
@@ -678,7 +861,7 @@ def run_phase1_audit(
         "phase": "0-1",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "seeds": seeds,
-        "algorithms": list(SUPPORTED_ALGORITHMS),
+        "algorithms": list(PHASE1_ALGORITHMS),
         "checks": checks,
         "gate_1_passed": all(checks.values()),
         "runs": results,
