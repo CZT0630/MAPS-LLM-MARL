@@ -86,18 +86,27 @@ class EIPromptBuilder:
             "constraints": {
                 "partition_ratios": "non-negative, sum to 1",
                 "edge_id_range": f"[0, {num_edges - 1}]",
+                "numeric_fields": (
+                    "ue_id, edge_id, local, edge, and cloud must be JSON "
+                    "numbers, not quoted strings"
+                ),
+                "required_actions": (
+                    "return one action for every non-null task; omit UEs "
+                    "whose task entry is null"
+                ),
+                "json_only": "no Markdown fences, prose, or comments",
             },
             "output_schema": {
                 "schema_version": "ei-v1",
                 "actions": [
                     {
-                        "ue_id": "<int>",
+                        "ue_id": 0,
                         "partition": {
-                            "local": "<float>",
-                            "edge": "<float>",
-                            "cloud": "<float>",
+                            "local": 0.2,
+                            "edge": 0.6,
+                            "cloud": 0.2,
                         },
-                        "edge_id": "<int>",
+                        "edge_id": 1,
                         "reason_code": "<string>",
                     }
                 ],
@@ -116,7 +125,9 @@ class EIPromptBuilder:
             '  - "partition": {"local", "edge", "cloud"}, non-negative, sum to 1\n'
             f'  - "edge_id": integer in [0, {max_edge}]\n'
             '  - "reason_code": short reason for this decision\n'
+            "All numeric fields must be JSON numbers, not strings.\n"
+            "Omit UEs whose task entry is null.\n"
             "Optimize task latency and device energy while respecting deadlines.\n"
-            "Return JSON only.\n\n"
+            "Return JSON only, without Markdown fences or explanatory prose.\n\n"
             + payload_str
         )

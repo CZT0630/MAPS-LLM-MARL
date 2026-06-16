@@ -34,12 +34,17 @@ class CachedExpertProvider:
         self.lookup_count = 0
         self.hit_count = 0
         self.miss_count = 0
+        self.decision_action_count = 0
         self.fallback_action_count = 0
 
     def _fallback_action(self) -> np.ndarray:
         return self.codec.env_to_policy_action(
             [1.0, 0.0, 0.0, 0.0]
         )
+
+    @staticmethod
+    def _fallback_env_action() -> list[float]:
+        return [1.0, 0.0, 0.0, 0.0]
 
     def _metadata(
         self,
@@ -98,6 +103,7 @@ class CachedExpertProvider:
                 self._fallback_action() for _ in range(self.num_agents)
             ]
             valid_mask = [False] * self.num_agents
+            self.decision_action_count += self.num_agents
             self.fallback_action_count += self.num_agents
             cache_hit = False
         else:
@@ -111,10 +117,17 @@ class CachedExpertProvider:
                 raise ValueError(
                     "cached valid_mask count does not match num_agents"
                 )
+            if len(entry.decision_mask) != self.num_agents:
+                raise ValueError(
+                    "cached decision_mask count does not match num_agents"
+                )
+            self.decision_action_count += sum(entry.decision_mask)
             actions = []
             valid_mask = []
-            for action_data, valid in zip(
-                entry.parsed_action, entry.valid_mask
+            for action_data, valid, required in zip(
+                entry.parsed_action,
+                entry.valid_mask,
+                entry.decision_mask,
             ):
                 if valid:
                     env_action = [
@@ -127,14 +140,15 @@ class CachedExpertProvider:
                         self.codec.env_to_policy_action(env_action)
                     )
                     valid_mask.append(True)
-                elif self.fallback_policy == "raise":
+                elif self.fallback_policy == "raise" and required:
                     raise KeyError(
                         f"state_hash {state_hash!r} contains fallback actions"
                     )
                 else:
                     actions.append(self._fallback_action())
                     valid_mask.append(False)
-                    self.fallback_action_count += 1
+                    if required:
+                        self.fallback_action_count += 1
 
         return ExpertBatch(
             policy_actions=np.asarray(actions, dtype=np.float32),
@@ -148,12 +162,42 @@ class CachedExpertProvider:
             ),
         )
 
+    def get_env_actions(self, state: Any) -> tuple[np.ndarray, ExpertBatch]:
+        """Return raw cached env actions plus the audited policy batch.
+
+        LLM-only evaluation should execute the exact parsed cache actions used
+        during cache generation.  Converting through float32 policy tensors can
+        change queue state hashes after a few steps.
+        """
+        batch = self.get_actions(state)
+        entry = self.cache.get(batch.metadata["state_hash"])
+        if entry is None:
+            env_actions = [
+                self._fallback_env_action() for _ in range(self.num_agents)
+            ]
+        else:
+            env_actions = []
+            for action_data, valid in zip(
+                entry.parsed_action, entry.valid_mask
+            ):
+                if not valid:
+                    env_actions.append(self._fallback_env_action())
+                    continue
+                env_actions.append(
+                    [
+                        float(action_data["partition"]["local"]),
+                        float(action_data["partition"]["edge"]),
+                        float(action_data["partition"]["cloud"]),
+                        float(action_data["edge_id"]),
+                    ]
+                )
+        return np.asarray(env_actions, dtype=np.float64), batch
+
     def get_actions_from_obs(self, observations: np.ndarray) -> ExpertBatch:
         """Compatibility wrapper; observations are treated as one joint state."""
         return self.get_actions(observations)
 
     def runtime_stats(self) -> dict[str, float | int]:
-        total_actions = self.lookup_count * self.num_agents
         return {
             "lookups": self.lookup_count,
             "hits": self.hit_count,
@@ -163,10 +207,11 @@ class CachedExpertProvider:
                 if self.lookup_count
                 else 0.0
             ),
+            "decision_actions": self.decision_action_count,
             "fallback_actions": self.fallback_action_count,
             "fallback_rate": (
-                self.fallback_action_count / total_actions
-                if total_actions
+                self.fallback_action_count / self.decision_action_count
+                if self.decision_action_count
                 else 0.0
             ),
         }

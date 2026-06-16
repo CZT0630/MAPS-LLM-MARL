@@ -102,8 +102,8 @@ EI 版本不重构为 Letter 路线，也不追求新的通用 LLM-RL 理论。�
 - C2 已实现 mixed distillation、分项记录和 environment-step 三阶段退火；
   smoke 仍使用合成固定缓存，正式 state-keyed cache artifact 尚未生成，
   `0.8/0.15/0` 仍只作为 pilot 初值。
-- C3 的 prompt、联合状态哈希、严格 parser、可审计 cache、共享 provider 和
-  LLM-only runner 已实现，但尚无真实 MiMo cache 与配套冻结场景产物。
+- C3 的 prompt、联合状态哈希、严格 parser、可审计 cache、共享 provider、
+  LLM-only runner、真实 MiMo cache 与配套冻结场景产物已完成。
 - 当前指标主要用于 smoke test，尚未完整输出 P95、DVR、TCR、AUC 和 threshold。
 - 当前训练与测试尚未使用冻结 scenario bank。
 
@@ -117,9 +117,9 @@ EI 版本不重构为 Letter 路线，也不追求新的通用 LLM-RL 理论。�
 | Partition squared L2 + edge CE | **done** | yes |
 | Fixed/annealed/no-LLM 三种 MAPS 配置 | **done** | yes |
 | state-keyed cache 代码与审计校验 | **done** | yes |
-| 真实 MiMo cache artifact | pending | yes |
+| 真实 MiMo cache artifact | **done** | yes |
 | LLM-only evaluator 代码 | **done** | yes |
-| LLM-only 冻结场景评估证据 | pending | yes |
+| LLM-only 冻结场景评估证据 | **done** | yes |
 | Drain horizon 和逐任务记录 | pending | yes |
 | P95、DVR、TCR、AUC、threshold | pending | yes |
 | 10/20/30/50 UE scenario bank | pending | yes |
@@ -355,7 +355,7 @@ paper_evidence=true
 - parser success、valid action 和 fallback rate 可统计。
 - LLM-only 可在冻结 scenario bank 上独立评估。
 
-**C3 工程实现审计（2026-06-16，尚未达到停止条件）：**
+**C3 完成记录（2026-06-17）：**
 
 已新增/修改文件：
 
@@ -369,7 +369,9 @@ baselines/llm_only.py                     (新建: LLMOnlyAgent)
 scripts/generate_expert_cache.py          (新建: API cache 生成脚本)
 experiments/runner.py                     (新增 llm_only 算法支持)
 config.yaml                               (新增 llm_only 配置段)
+configs/ei/formal_s1.yaml                 (新增: C3 正式 S1 配置)
 tests/test_expert_cache.py                (新增 C3 单元与集成测试)
+tests/test_ei_formal_config.py            (新增: 正式配置检查)
 ```
 
 验证结果：
@@ -378,8 +380,11 @@ tests/test_expert_cache.py                (新增 C3 单元与集成测试)
 - ExpertCache 支持原子 save/load，并在加载时验证 raw response hash、模型、
   temperature、状态键和 parser/fallback 一致性。
 - hash_state 使用完整 SHA-256、稳定规范化，并保留 `1e-9` 等小量纲物理参数。
-- CachedExpertProvider 使用联合状态键，区分 cache miss、parser fallback 与无任务时隙。
+- CachedExpertProvider 使用联合状态键，区分 cache miss、parser fallback、非决策 UE
+  与无任务时隙。
 - LLMOnlyAgent 输出 [3+E] policy action，fallback 为 all-local。
+- LLM-only 部署评估直接执行 cache 中的原始 env action，避免 float32 往返造成
+  严格状态哈希漂移。
 - add_from_api_response 严格检查 partition 和 ES id，按实际待决策 UE 统计
   valid/partial/failed。
 - generate_expert_cache.py 脚本可通过 `python -m scripts.generate_expert_cache` 运行。
@@ -387,12 +392,28 @@ tests/test_expert_cache.py                (新增 C3 单元与集成测试)
 - llm_only 可通过统一 runner 接口运行，记录场景文件 SHA-256，并可强制零 cache miss。
 - API key 不写入 cache、config 或 manifest。
 
-尚未满足的 C3 停止条件：
+正式产物与统计：
 
-- 使用真实 API 生成至少 500 个 state 的 expert cache。
-- 冻结生成脚本输出的配套 scenario bank，并保存 cache/bank SHA-256。
-- 在真实产物上验证 parser success、valid action、fallback 和 cache coverage。
-- 运行 LLM-only 冻结场景评估，确认 `online_api_calls=0` 且 cache miss 为 0。
+- `artifacts/ei/expert_cache.json`
+  - entries: 500
+  - provider/model: Xiaomi MiMo / `mimo-v2.5`
+  - cache SHA-256: `7485c17fc1ea2c0e14f2312f472997ee1b2e271aee75ad8761885a66c1c83439`
+  - parser success rate: 100%
+  - valid action rate: 100%
+  - fallback rate: 0%
+  - mean uncached latency: 4988.11 ms
+  - max uncached latency: 62512.86 ms
+- `artifacts/ei/expert_scenario_bank.json`
+  - scenario bank id: `ei-expert-29c3d494edf5b103`
+  - scenario count: 3
+  - construction seed: 42
+- LLM-only 冻结评估：
+  - `online_api_calls=0`
+  - cache lookups/hits/misses: 500 / 500 / 0
+  - decision actions: 2581
+  - runtime fallback actions/rate: 0 / 0%
+- `MAPS-w/o-Annealing` 和 `MAPS` 1-step cache 验证均命中同一
+  `artifacts/ei/expert_cache.json` 与同一 cache SHA-256。
 
 ### C4：正式指标与评估协议
 
@@ -932,8 +953,7 @@ loss、queue backlog、per-node utilization、device energy、expert similarity 
 
 当前最先执行的不是继续增加 baseline，也不是开始跑正式大实验，而是：
 
-> 完成 C3 真实 MiMo cache 生成与配套冻结场景评估，确认 parser/action validity、
-> fallback rate 和 cache coverage 后，再进入 C4。
+> 完成 C4 正式指标、drain horizon、逐任务记录和 evaluation artifact。
 
-在 C3-C4 完成前，现有 `legacy_maps`、Greedy smoke、Phase 2 smoke 和合成 C3
-集成测试只能证明工程路径可运行，不能进入 EI 论文结果。
+在 C4 完成前，现有 `legacy_maps`、Greedy smoke、Phase 2 smoke 和 C3 cache
+证据只能证明工程路径与专家证据链可运行，不能进入 EI 论文最终结果。

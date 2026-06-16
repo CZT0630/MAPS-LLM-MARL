@@ -1,0 +1,25 @@
+{
+  "cache_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache.json",
+  "cache_sha256": "7485c17fc1ea2c0e14f2312f472997ee1b2e271aee75ad8761885a66c1c83439",
+  "construction_seed": 42,
+  "env_config_path": "D:\\Lab_WSPN\\LLM4RL\\configs\\ei\\formal_s1.yaml",
+  "environment_fingerprint": "3fb3b46a5801d50aa0d9187250ea995382ff8f02cc9084a4b2c46b4d0735d1ab",
+  "prompt_version": "ei-v1",
+  "scenario_bank_id": "ei-expert-29c3d494edf5b103",
+  "scenarios": [
+    {
+      "max_steps": 200,
+      "seed": 42
+    },
+    {
+      "max_steps": 200,
+      "seed": 43
+    },
+    {
+      "max_steps": 100,
+      "seed": 44
+    }
+  ],
+  "schema_version": "ei-expert-scenario-bank-v1",
+  "state_key_version": "ei-state-v1"
+}

@@ -35,6 +35,9 @@ class LLMOnlyAgent:
     def select_joint_actions(self, state: Any) -> ExpertBatch:
         return self.provider.get_actions(state)
 
+    def select_env_actions(self, state: Any) -> tuple[np.ndarray, ExpertBatch]:
+        return self.provider.get_env_actions(state)
+
     def policy_to_env_actions(
         self, policy_actions: np.ndarray
     ) -> np.ndarray:

@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
-from llm_assistant.llm_client import LLMClient
-from utils.config import load_config
+_package_root = Path(__file__).resolve().parents[1]
+_workspace_root = _package_root.parent
+if str(_workspace_root) not in sys.path:
+    sys.path.insert(0, str(_workspace_root))
+
+from LLM4RL.llm_assistant.llm_client import LLMClient
+from LLM4RL.utils.config import load_config
 
 
 def main() -> None:
@@ -20,6 +26,8 @@ def main() -> None:
     args = parser.parse_args()
 
     config_path = Path(args.config)
+    if not config_path.is_absolute() and not config_path.is_file():
+        config_path = _package_root / config_path
     if not config_path.exists():
         raise FileNotFoundError(config_path)
 

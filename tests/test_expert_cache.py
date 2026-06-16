@@ -417,6 +417,24 @@ class TestCachedProvider:
         assert batch.metadata["no_decision"] is True
         assert provider.runtime_stats()["lookups"] == 0
 
+    def test_non_decision_ue_does_not_count_as_runtime_fallback(self):
+        cache = ExpertCache("ei-v1", "xiaomi_mimo", "mimo-v2.5")
+        state = {"one-task": True}
+        cache.add_from_api_response(
+            state_hash=hash_state(state),
+            raw_response=_raw_actions(include_second=False),
+            num_devices=2,
+            num_edges=3,
+            llm_metadata=_metadata(),
+            query_latency_ms=1.0,
+            decision_mask=[True, False],
+        )
+        provider = CachedExpertProvider(cache, num_agents=2, num_edges=3)
+        batch = provider.get_actions(state)
+        assert batch.valid_mask.tolist() == [1.0, 0.0]
+        assert provider.runtime_stats()["decision_actions"] == 1
+        assert provider.runtime_stats()["fallback_actions"] == 0
+
 
 class TestLLMOnly:
     def test_agent_uses_joint_cache_without_online_query(self):
@@ -431,6 +449,18 @@ class TestLLMOnly:
         assert env_actions.shape == (2, 4)
         assert env_actions[0, 3] == 1
         assert env_actions[1, 3] == 0
+
+    def test_agent_can_execute_raw_cache_env_actions(self):
+        state = {"joint": [1, 2]}
+        agent = LLMOnlyAgent(
+            _cache_with_state(state),
+            num_agents=2,
+            num_edges=3,
+        )
+        env_actions, batch = agent.select_env_actions(state)
+        assert batch.metadata["cache_hit"] is True
+        assert env_actions.dtype == np.float64
+        np.testing.assert_allclose(env_actions[0], [0.2, 0.6, 0.2, 1.0])
 
 
 def _formal_runner_config(tmp_path: Path) -> dict:

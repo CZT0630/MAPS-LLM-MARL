@@ -19,15 +19,13 @@
 - **C2 已完成**：mixed distillation 使用 partition squared L2 与 edge CE，
   支持 `maddpg`、`maps_no_annealing`、`maps` 三种模式及 environment-step 退火，
   并在 checkpoint/manifest 中保存调度和专家缓存版本。
-- **C3 工程实现已补齐，正式证据待生成**：state-keyed expert cache（audit trail 含 state_hash、
-  prompt_version、provider、request_id、token_usage 等）；EI-v1 prompt builder；
-  CachedExpertProvider（cache hit / all-local fallback）；LLM-only evaluator；
-  cache 与配套冻结场景生成脚本 `scripts/generate_expert_cache.py`。仓库当前尚无
-  真实 MiMo cache artifact，因此尚未达到 C3 停止条件。
+- **C3 已完成**：使用 MiMo-V2.5 生成 500-state state-keyed expert cache；
+  parser success、valid action rate 均为 100%，fallback rate 为 0%；LLM-only
+  在配套冻结 scenario bank 上验证通过，部署期 `online_api_calls=0` 且 cache miss 为 0。
 
 Phase 1 仅证明基线可运行、可复现，不代表论文方法或性能结论已经成立。Phase 2
-修复了环境物理模型，但尚未用于正式论文实验。C1/C2 已完成；当前下一步是使用
-真实 API 冻结 C3 cache、场景清单并验证 parser validity/cache coverage。
+修复了环境物理模型，但尚未用于正式论文实验。C1-C3 已完成，当前下一步是 C4
+正式指标与评估协议。
 
 ## 快速开始
 
@@ -74,6 +72,7 @@ python -m LLM4RL.main --help
 - `environment/snapshot.py`：环境快照与纯函数式评估。
 - `experiments/runner.py`：统一训练和审计入口。
 - `fixtures/legacy_expert_cache.json`：仅用于工程验证的固定专家缓存。
+- `configs/ei/formal_s1.yaml`：C3 MiMo cache 生成和 LLM-only 冻结评估的正式 S1 配置。
 - `llm_assistant/ei_prompt_builder.py`：EI-v1 prompt builder。
 - `llm_assistant/expert_cache.py`：state-keyed expert cache 与 audit trail。
 - `llm_assistant/cached_expert_provider.py`：cache hit / fallback provider。
@@ -87,7 +86,7 @@ python -m LLM4RL.main --help
 
 该主文档是 EI 路线的唯一方案，统一定义代码修改顺序、baseline、场景、指标、
 图表和论文逐节修改要求。C1 混合动作 codec 与 C2 mixed distillation/退火已完成；
-C3 的代码链路已实现，但真实 MiMo cache、冻结场景评估和有效率证据仍待生成。
+C3 真实 MiMo cache、冻结场景评估和有效率证据已完成。
 完成这些工作前，`legacy_maps` 只用于工程 smoke test，不能作为论文结果。
 
 MiMo API 的无密钥配置和本地验证方法见

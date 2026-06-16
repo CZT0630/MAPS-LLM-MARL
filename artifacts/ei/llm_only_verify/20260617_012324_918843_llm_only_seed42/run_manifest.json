@@ -1,0 +1,347 @@
+{
+  "schema_version": "1.0",
+  "model_version": 2,
+  "algorithm": "llm_only",
+  "seed": 42,
+  "status": "passed",
+  "started_at": "2026-06-16T17:23:24.919846+00:00",
+  "command": "main.py --mode train --algorithm llm_only --config configs/ei/formal_s1.yaml --output-root artifacts/ei/llm_only_verify --seeds 42",
+  "config_hash": "ccc08017443c2e4900eca96bc43c1faafa6d732a3d53dedef9dc0581156d8f72",
+  "git_commit": "72674d7bc92892691d5219a77118495f517daa3c",
+  "system": {
+    "python": "3.10.15 | packaged by Anaconda, Inc. | (main, Oct  3 2024, 07:22:19) [MSC v.1929 64 bit (AMD64)]",
+    "platform": "Windows-10-10.0.22631-SP0",
+    "torch": "2.4.1+cu124",
+    "cuda_available": true,
+    "cuda_version": "12.4",
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU"
+  },
+  "config": {
+    "environment": {
+      "num_devices": 10,
+      "num_edges": 5,
+      "num_clouds": 1,
+      "action_space": {
+        "type": "continuous",
+        "dimension": 4
+      },
+      "device_config": {
+        "cpu_capacity": 2.0,
+        "memory_capacity": 4.0
+      },
+      "edge_config": {
+        "cpu_capacity": 8.0,
+        "memory_capacity": 16.0
+      },
+      "cloud_config": {
+        "cpu_capacity": 32.0,
+        "memory_capacity": 64.0
+      },
+      "task_config": {
+        "types": [
+          "computation_intensive",
+          "data_intensive",
+          "balanced"
+        ],
+        "min_computation": 100,
+        "max_computation": 1000,
+        "min_data_size": 1,
+        "max_data_size": 100,
+        "min_deadline": 10,
+        "max_deadline": 60
+      },
+      "name": "ei_formal_s1",
+      "physics_version": 2,
+      "debug": false,
+      "delta_t": 1.0
+    },
+    "network": {
+      "ue_to_edge_rate": "1e8",
+      "ue_to_cloud_total_rate": "1e7",
+      "edge_to_cloud_rate": "1e8"
+    },
+    "tasks": {
+      "simple_mode": false,
+      "simple_data_choices": [
+        100,
+        150,
+        200,
+        250
+      ],
+      "simple_deadline_multiplier": 3.0,
+      "generator_verbose": false,
+      "fixed_deadline_seconds": null,
+      "processing_density": "0.2e9",
+      "poisson_config": {
+        "base_arrival_rate": 0.5,
+        "time_pattern_enabled": false
+      },
+      "output_ratio": 0.1,
+      "semantic_type_weights": {
+        "video_analytics": 0.25,
+        "ar_vr": 0.25,
+        "ai_inference": 0.25,
+        "control": 0.25
+      }
+    },
+    "reward": {
+      "type": "normalized",
+      "latency_weight": 0.5,
+      "energy_weight": 0.5,
+      "deadline_penalty": 1.0,
+      "energy_scope": "user"
+    },
+    "llm": {
+      "provider": "xiaomi_mimo",
+      "display_name": "MiMo-V2.5",
+      "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
+      "endpoint": "/chat/completions",
+      "model_name": "mimo-v2.5",
+      "api_key_env": "MIMO_API_KEY",
+      "temperature": 0.0,
+      "max_completion_tokens": 4096,
+      "enable_thinking": false,
+      "query_frequency": 1
+    },
+    "maddpg": {
+      "lr_actor": 0.0003,
+      "lr_critic": 0.0003,
+      "gamma": 0.99,
+      "tau": 0.005,
+      "buffer_size": 100000,
+      "batch_size": 256,
+      "max_episodes": 300,
+      "max_steps": 100,
+      "num_agents": 10,
+      "actor_hidden_dims": [
+        128,
+        64
+      ],
+      "critic_hidden_dims": [
+        256,
+        128
+      ],
+      "train_frequency": 20,
+      "noise_type": "ou",
+      "noise_theta": 0.15,
+      "noise_sigma": 0.2,
+      "noise_decay": 0.995
+    },
+    "happo": {
+      "lr_actor": 0.0003,
+      "lr_critic": 0.001,
+      "gamma": 0.99,
+      "lam": 0.95,
+      "clip_range": 0.2,
+      "kl_coeff": 0.5,
+      "entropy_coeff": 0.01,
+      "value_coeff": 0.5,
+      "update_epochs": 4,
+      "batch_size": 64,
+      "max_episodes": 200,
+      "max_steps": 200
+    },
+    "mappo": {
+      "lr_actor": 0.0003,
+      "lr_critic": 0.001,
+      "gamma": 0.99,
+      "lam": 0.95,
+      "clip_range": 0.2,
+      "entropy_coeff": 0.01,
+      "value_coeff": 0.5,
+      "update_epochs": 4,
+      "batch_size": 64,
+      "max_episodes": 200,
+      "max_steps": 200
+    },
+    "seed": 42,
+    "model_version": 2,
+    "device_specs": {
+      "user_equipment": {
+        "count": 10,
+        "cpu_frequency_range": [
+          0.5,
+          0.8
+        ],
+        "alpha_ue": "1e-10",
+        "transmission_power": 0.5,
+        "transmission_rate_to_edge": "1e8",
+        "transmission_rate_to_cloud": "1e9"
+      },
+      "edge_servers": {
+        "count": 5,
+        "cpu_frequencies": [
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "alpha_es": "3e-10",
+        "transmission_rate_to_cloud": "1e8"
+      },
+      "cloud_servers": {
+        "count": 1,
+        "cpu_frequency": 20,
+        "alpha_cs": "3e-10",
+        "parallel_factor": 8.0
+      }
+    },
+    "channel": {
+      "bandwidth_hz": "1e6",
+      "transmit_power_w": 0.5,
+      "noise_psd_w_hz": "1e-17",
+      "path_loss_exponent": 3.0,
+      "ref_distance_m": 1.0,
+      "ref_distance_gain_db": 0.0,
+      "default_distance_m": 100.0,
+      "downlink_transmit_power_w": 0.5,
+      "rate_normalization_bps": "100e6"
+    },
+    "backhaul": {
+      "rate_bps": "1e9",
+      "energy_per_bit": "1e-9",
+      "propagation_latency_s": 0.002
+    },
+    "energy": {
+      "kappa_ue": "1e-28",
+      "kappa_es": "3e-28",
+      "kappa_cs": "3e-28"
+    },
+    "legacy_maps": {
+      "max_episodes": 20,
+      "max_steps": 10,
+      "train_frequency": 4,
+      "distill_weight": 0.2,
+      "expert_cache": "fixtures/legacy_expert_cache.json"
+    },
+    "llm_maddpg": {
+      "inherit_from": "maddpg",
+      "max_episodes": 300,
+      "max_steps": 100,
+      "train_frequency": 20,
+      "eta_edge": 1.0,
+      "initial_llm_distill_weight": 0.8,
+      "constant_llm_distill_weight": 0.15,
+      "stage1_end_progress": 0.3,
+      "stage2_end_progress": 0.7,
+      "exploration_episodes": 150
+    },
+    "expert_cache": {
+      "format": "state_keyed",
+      "path": "artifacts/ei/expert_cache.json",
+      "fallback_policy": "all_local"
+    },
+    "llm_only": {
+      "max_episodes": 200,
+      "max_steps": 200,
+      "require_full_cache_coverage": true,
+      "scenario_bank": "artifacts/ei/expert_scenario_bank.json"
+    },
+    "training": {
+      "episodes": 300,
+      "max_steps_per_episode": 100,
+      "save_frequency": 50,
+      "log_frequency": 10,
+      "warm_up_episodes": 0
+    },
+    "testing": {
+      "num_episodes": 100,
+      "max_steps": 100,
+      "save_results": true,
+      "detailed_logging": true
+    }
+  },
+  "ended_at": "2026-06-16T17:23:26.033858+00:00",
+  "summary": {
+    "status": "passed",
+    "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\llm_only_verify\\20260617_012324_918843_llm_only_seed42",
+    "episodes": 3,
+    "updates": 0,
+    "metrics": {
+      "reward": -8.42192820346864,
+      "latency": 10.974633301834404,
+      "energy": 341.91444375001106,
+      "completion_rate": 0.7036771025378146
+    },
+    "finite_metrics": true,
+    "extra": {
+      "llm_only": true,
+      "online_api_calls": 0,
+      "hybrid_action": true,
+      "num_edges": 5,
+      "cache_stats": {
+        "total": 500,
+        "valid": 500,
+        "partial": 0,
+        "failed": 0,
+        "valid_rate": 1.0,
+        "parser_success_rate": 1.0,
+        "valid_action_count": 2581,
+        "action_count": 2581,
+        "valid_action_rate": 1.0,
+        "fallback_rate": 0.0,
+        "mean_latency_ms": 4988.110357999918,
+        "max_latency_ms": 62512.86449999316
+      },
+      "cache_runtime_stats": {
+        "lookups": 500,
+        "hits": 500,
+        "misses": 0,
+        "hit_rate": 1.0,
+        "decision_actions": 2581,
+        "fallback_actions": 0,
+        "fallback_rate": 0.0
+      },
+      "expert": {
+        "source": "state_keyed_cache",
+        "state_hash": "4abb4fdd7b715f4ffb5475ce4dd1b9ac4bd03e40086df6f1a674cc97b682e96e",
+        "cache_hit": true,
+        "no_decision": false,
+        "cache_size": 500,
+        "cache_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache.json",
+        "cache_sha256": "7485c17fc1ea2c0e14f2312f472997ee1b2e271aee75ad8761885a66c1c83439",
+        "cache_schema_version": "ei-cache-v1",
+        "cache_version": "ei-cache-v1",
+        "cache_stats": {
+          "total": 500,
+          "valid": 500,
+          "partial": 0,
+          "failed": 0,
+          "valid_rate": 1.0,
+          "parser_success_rate": 1.0,
+          "valid_action_count": 2581,
+          "action_count": 2581,
+          "valid_action_rate": 1.0,
+          "fallback_rate": 0.0,
+          "mean_latency_ms": 4988.110357999918,
+          "max_latency_ms": 62512.86449999316
+        },
+        "runtime_stats": {
+          "lookups": 500,
+          "hits": 500,
+          "misses": 0,
+          "hit_rate": 1.0,
+          "decision_actions": 2581,
+          "fallback_actions": 0,
+          "fallback_rate": 0.0
+        },
+        "fallback_policy": "all_local",
+        "prompt_version": "ei-v1",
+        "provider": "xiaomi_mimo",
+        "requested_model": "mimo-v2.5",
+        "state_key_version": "ei-state-v1",
+        "paper_evidence": true
+      },
+      "scenario_bank_id": "ei-expert-29c3d494edf5b103",
+      "scenario_bank_frozen": true,
+      "scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_scenario_bank.json",
+      "scenario_bank_sha256": "1087670cbf99e6a0f8d60784476e70e17c271d4c97264be6c44448dbdfca7017",
+      "scenario_count": 3,
+      "scenario_construction_seed": 42,
+      "environment_fingerprint": "3fb3b46a5801d50aa0d9187250ea995382ff8f02cc9084a4b2c46b4d0735d1ab",
+      "require_full_cache_coverage": true,
+      "cache_coverage_complete": true
+    }
+  }
+}

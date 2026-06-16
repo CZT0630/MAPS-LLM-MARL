@@ -902,12 +902,14 @@ def _run_llm_only(
                             "frozen LLM-only scenario is not fully covered by "
                             f"the expert cache: {state_hash}"
                         )
-                    expert_batch = agent.select_joint_actions(state)
+                    env_actions, expert_batch = agent.select_env_actions(
+                        state
+                    )
                 else:
                     expert_batch = agent.provider.get_noop_actions(state)
-                env_actions = agent.policy_to_env_actions(
-                    expert_batch.policy_actions
-                )
+                    env_actions = agent.policy_to_env_actions(
+                        expert_batch.policy_actions
+                    )
             else:
                 expert_batch = provider.get_actions(
                     len(episodes), step

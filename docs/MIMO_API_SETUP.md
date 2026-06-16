@@ -44,7 +44,7 @@ For formal experiments:
 
    ```powershell
    python -m scripts.generate_expert_cache `
-     --env-config <frozen-phase2-config.yaml> `
+     --env-config configs/ei/formal_s1.yaml `
      --num-samples 500
    ```
 

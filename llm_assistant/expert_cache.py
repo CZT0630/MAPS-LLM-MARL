@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -368,9 +369,16 @@ class ExpertCache:
             indent=2,
             sort_keys=True,
         ).encode("utf-8")
-        temporary_path = path.with_suffix(path.suffix + ".tmp")
+        temporary_path = path.with_name(f"{path.name}.{os.getpid()}.tmp")
         temporary_path.write_bytes(cache_bytes)
-        temporary_path.replace(path)
+        for attempt in range(10):
+            try:
+                temporary_path.replace(path)
+                break
+            except PermissionError:
+                if attempt == 9:
+                    raise
+                time.sleep(0.1 * (attempt + 1))
         self.source_path = str(path.resolve())
         self.file_sha256 = hashlib.sha256(cache_bytes).hexdigest()
 
