@@ -18,6 +18,7 @@ pilot_gate:
   train_frequency: 1
   update_epochs: 1
   output_root: artifacts/ei/pilot_gate
+  expert_cache: artifacts/ei/expert_cache_c6_pilot.json
   thresholds:
     auc_tolerance: 0.0
     min_auc_delta: 1e-9
@@ -34,6 +35,9 @@ training:
 evaluation:
   window_steps: 20
   drain_horizon_steps: 5
+
+expert_cache:
+  path: artifacts/ei/expert_cache_c6_pilot.json
 
 maddpg:
   max_episodes: 2

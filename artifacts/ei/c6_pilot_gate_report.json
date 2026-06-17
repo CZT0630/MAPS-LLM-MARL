@@ -1,0 +1,2170 @@
+{
+  "schema_version": "ei-c6-pilot-gate-v1",
+  "gate_passed": true,
+  "checks": {
+    "required_algorithms_present": true,
+    "all_training_runs_passed": true,
+    "all_evaluation_runs_passed": true,
+    "hybrid_action_train_execute_consistent": true,
+    "zero_online_api_calls_in_eval": true,
+    "maps_eval_deploys_actor_without_llm": true,
+    "expert_cache_offline_quality_high": true,
+    "expert_cache_runtime_coverage_high": true,
+    "maps_auc_not_below_maddpg": true,
+    "fixed_and_annealed_measurably_differ": true,
+    "dvr_tcr_not_degenerate": true
+  },
+  "thresholds": {
+    "auc_tolerance": 0.0,
+    "min_auc_delta": 1e-09,
+    "min_parser_success_rate": 0.95,
+    "min_valid_action_rate": 0.95,
+    "max_cache_fallback_rate": 0.05,
+    "max_runtime_cache_miss_rate": 0.05,
+    "max_runtime_fallback_rate": 0.05
+  },
+  "summaries": {
+    "maddpg": {
+      "algorithm": "maddpg",
+      "seeds": [
+        42,
+        43
+      ],
+      "train_statuses": [
+        "passed",
+        "passed"
+      ],
+      "eval_statuses": [
+        "passed",
+        "passed"
+      ],
+      "reward_auc": [
+        -26.336903590940544,
+        -24.422344918582247
+      ],
+      "final_reward": [
+        -20.467386266545596,
+        -21.195582036958587
+      ],
+      "TCR": [
+        0.6033519553072626,
+        0.5139664804469274
+      ],
+      "DVR": [
+        0.5418994413407822,
+        0.5698324022346368
+      ],
+      "p95_task_latency": [
+        14.922500258143417,
+        9.977417007672791
+      ],
+      "online_api_calls": [
+        0,
+        0
+      ],
+      "hybrid_action": [
+        true,
+        true
+      ],
+      "maps_eval_uses_llm": [
+        null,
+        null
+      ],
+      "runtime_cache_stats": [],
+      "seed_count": 2,
+      "mean_reward_auc": -25.379624254761396,
+      "mean_final_reward": -20.831484151752093,
+      "mean_TCR": 0.558659217877095,
+      "mean_DVR": 0.5558659217877095,
+      "mean_p95_task_latency": 12.449958632908103,
+      "total_online_api_calls": 0,
+      "mean_runtime_cache_miss_rate": null,
+      "mean_runtime_fallback_rate": null
+    },
+    "mappo": {
+      "algorithm": "mappo",
+      "seeds": [
+        42,
+        43
+      ],
+      "train_statuses": [
+        "passed",
+        "passed"
+      ],
+      "eval_statuses": [
+        "passed",
+        "passed"
+      ],
+      "reward_auc": [
+        -25.183779426530158,
+        -24.33117584179822
+      ],
+      "final_reward": [
+        -19.933285630305154,
+        -19.01841893772424
+      ],
+      "TCR": [
+        0.5977653631284916,
+        0.547486033519553
+      ],
+      "DVR": [
+        0.5363128491620112,
+        0.553072625698324
+      ],
+      "p95_task_latency": [
+        12.468567402720518,
+        16.321304854177292
+      ],
+      "online_api_calls": [
+        0,
+        0
+      ],
+      "hybrid_action": [
+        true,
+        true
+      ],
+      "maps_eval_uses_llm": [
+        null,
+        null
+      ],
+      "runtime_cache_stats": [],
+      "seed_count": 2,
+      "mean_reward_auc": -24.75747763416419,
+      "mean_final_reward": -19.475852284014696,
+      "mean_TCR": 0.5726256983240223,
+      "mean_DVR": 0.5446927374301676,
+      "mean_p95_task_latency": 14.394936128448904,
+      "total_online_api_calls": 0,
+      "mean_runtime_cache_miss_rate": null,
+      "mean_runtime_fallback_rate": null
+    },
+    "maps_no_annealing": {
+      "algorithm": "maps_no_annealing",
+      "seeds": [
+        42,
+        43
+      ],
+      "train_statuses": [
+        "passed",
+        "passed"
+      ],
+      "eval_statuses": [
+        "passed",
+        "passed"
+      ],
+      "reward_auc": [
+        -26.333845356515944,
+        -23.76614698827367
+      ],
+      "final_reward": [
+        -20.48133759668248,
+        -19.857380380700288
+      ],
+      "TCR": [
+        0.6033519553072626,
+        0.553072625698324
+      ],
+      "DVR": [
+        0.5642458100558659,
+        0.5754189944134078
+      ],
+      "p95_task_latency": [
+        13.14031026963603,
+        16.366933837240573
+      ],
+      "online_api_calls": [
+        0,
+        0
+      ],
+      "hybrid_action": [
+        true,
+        true
+      ],
+      "maps_eval_uses_llm": [
+        false,
+        false
+      ],
+      "runtime_cache_stats": [
+        {
+          "lookups": 40,
+          "hits": 40,
+          "misses": 0,
+          "unique_misses": 0,
+          "live_fills": 0,
+          "online_api_calls": 0,
+          "hit_rate": 1.0,
+          "decision_actions": 169,
+          "fallback_actions": 0,
+          "fallback_rate": 0.0
+        },
+        {
+          "lookups": 40,
+          "hits": 40,
+          "misses": 0,
+          "unique_misses": 0,
+          "live_fills": 0,
+          "online_api_calls": 0,
+          "hit_rate": 1.0,
+          "decision_actions": 169,
+          "fallback_actions": 0,
+          "fallback_rate": 0.0
+        }
+      ],
+      "seed_count": 2,
+      "mean_reward_auc": -25.049996172394806,
+      "mean_final_reward": -20.169358988691386,
+      "mean_TCR": 0.5782122905027933,
+      "mean_DVR": 0.5698324022346368,
+      "mean_p95_task_latency": 14.753622053438303,
+      "total_online_api_calls": 0,
+      "mean_runtime_cache_miss_rate": 0.0,
+      "mean_runtime_fallback_rate": 0.0
+    },
+    "maps": {
+      "algorithm": "maps",
+      "seeds": [
+        42,
+        43
+      ],
+      "train_statuses": [
+        "passed",
+        "passed"
+      ],
+      "eval_statuses": [
+        "passed",
+        "passed"
+      ],
+      "reward_auc": [
+        -26.346985420868016,
+        -23.843896817814
+      ],
+      "final_reward": [
+        -20.50738707442571,
+        -20.018068571405607
+      ],
+      "TCR": [
+        0.5977653631284916,
+        0.5363128491620112
+      ],
+      "DVR": [
+        0.5698324022346368,
+        0.5754189944134078
+      ],
+      "p95_task_latency": [
+        13.091270721087376,
+        15.640117087108564
+      ],
+      "online_api_calls": [
+        0,
+        0
+      ],
+      "hybrid_action": [
+        true,
+        true
+      ],
+      "maps_eval_uses_llm": [
+        false,
+        false
+      ],
+      "runtime_cache_stats": [
+        {
+          "lookups": 40,
+          "hits": 40,
+          "misses": 0,
+          "unique_misses": 0,
+          "live_fills": 0,
+          "online_api_calls": 0,
+          "hit_rate": 1.0,
+          "decision_actions": 169,
+          "fallback_actions": 0,
+          "fallback_rate": 0.0
+        },
+        {
+          "lookups": 40,
+          "hits": 40,
+          "misses": 0,
+          "unique_misses": 0,
+          "live_fills": 0,
+          "online_api_calls": 0,
+          "hit_rate": 1.0,
+          "decision_actions": 169,
+          "fallback_actions": 0,
+          "fallback_rate": 0.0
+        }
+      ],
+      "seed_count": 2,
+      "mean_reward_auc": -25.095441119341007,
+      "mean_final_reward": -20.262727822915657,
+      "mean_TCR": 0.5670391061452513,
+      "mean_DVR": 0.5726256983240223,
+      "mean_p95_task_latency": 14.36569390409797,
+      "total_online_api_calls": 0,
+      "mean_runtime_cache_miss_rate": 0.0,
+      "mean_runtime_fallback_rate": 0.0
+    }
+  },
+  "expert_cache": {
+    "available": true,
+    "cache_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache_c6_pilot.json",
+    "file_sha256": "cc83715df37067f81fb5074900177e092e02cd024034cae7cbaa4fa5f525854d",
+    "provider": "xiaomi_mimo",
+    "requested_model": "mimo-v2.5",
+    "prompt_version": "ei-v1",
+    "state_key_version": "ei-state-v1",
+    "stats": {
+      "total": 944,
+      "valid": 944,
+      "partial": 0,
+      "failed": 0,
+      "valid_rate": 1.0,
+      "parser_success_rate": 1.0,
+      "valid_action_count": 4507,
+      "action_count": 4507,
+      "valid_action_rate": 1.0,
+      "fallback_rate": 0.0,
+      "mean_latency_ms": 4767.066988983644,
+      "max_latency_ms": 62512.86449999316
+    }
+  },
+  "diagnostics": {
+    "required_algorithms": [
+      "maddpg",
+      "mappo",
+      "maps_no_annealing",
+      "maps"
+    ],
+    "present_algorithms": [
+      "maddpg",
+      "mappo",
+      "maps",
+      "maps_no_annealing"
+    ],
+    "maps_mean_reward_auc": -25.095441119341007,
+    "maddpg_mean_reward_auc": -25.379624254761396,
+    "maps_no_annealing_mean_reward_auc": -25.049996172394806,
+    "tcr_degenerate": false,
+    "dvr_degenerate": false,
+    "runtime_cache_stats_available": true
+  },
+  "created_at": "2026-06-17T16:15:10.232169+00:00",
+  "output_root": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate",
+  "scenario_banks": {
+    "train_bank": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+    "test_bank": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_test.json",
+    "train_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+    "test_bank_id": "ei-c6_s1_u10_medium_pilot-test-f637d70a3d9b9e0e",
+    "train_scenario_count": 2,
+    "test_scenario_count": 2
+  },
+  "config": {
+    "base_config": "D:\\Lab_WSPN\\LLM4RL\\configs\\ei\\base.yaml",
+    "scale_config": "D:\\Lab_WSPN\\LLM4RL\\configs\\ei\\scales\\s1_u10.yaml",
+    "deadline_config": "D:\\Lab_WSPN\\LLM4RL\\configs\\ei\\deadlines\\medium.yaml",
+    "pilot_config": "D:\\Lab_WSPN\\LLM4RL\\configs\\ei\\pilot.yaml",
+    "extra_fragments": [],
+    "expert_cache_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache_c6_pilot.json",
+    "live_fill_cache_output": null,
+    "live_fill_config": "D:\\Lab_WSPN\\LLM4RL\\configs\\ei\\llm_mimo.yaml",
+    "algorithms": [
+      "maddpg",
+      "mappo",
+      "maps_no_annealing",
+      "maps"
+    ],
+    "seeds": [
+      42,
+      43
+    ],
+    "train_scenario_seeds": [
+      1000,
+      1001
+    ],
+    "test_scenario_seeds": [
+      2000,
+      2001
+    ],
+    "train_steps": 20,
+    "eval_steps": 20,
+    "drain_steps": 5,
+    "batch_size": 4,
+    "train_frequency": 1,
+    "update_epochs": 1,
+    "allow_degenerate_metrics": false,
+    "allow_untrained_eval": false
+  },
+  "records": [
+    {
+      "algorithm": "maddpg",
+      "seed": 42,
+      "train_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42",
+        "episodes": 2,
+        "updates": 37,
+        "metrics": {
+          "reward": -26.336903590940548,
+          "latency": 28.547153040240673,
+          "energy": 516.6456787971686,
+          "completion_rate": 0.5322128851540616
+        },
+        "convergence_metrics": {
+          "reward_auc": -26.336903590940544,
+          "final_reward": -20.467386266545596,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "buffer_size": 40,
+          "joint_replay": true,
+          "centralized_critic": true,
+          "expert": {},
+          "hybrid_action": true,
+          "num_edges": 5,
+          "action_dim": 8,
+          "annealing": false,
+          "schedule_type": null,
+          "missed_expert_state_count": 0,
+          "missed_expert_states_path": null,
+          "distillation": {
+            "mode": "maddpg",
+            "eta_edge": 1.0,
+            "schedule": {
+              "type": "disabled",
+              "lambda_value": 0.0,
+              "progress_unit": "environment_steps"
+            },
+            "expert": {},
+            "global_step": 40,
+            "planned_environment_steps": 40,
+            "exploration_episodes": 1,
+            "final_progress": 1.0,
+            "final_lambda": 0.0,
+            "loss_scale": {},
+            "training_scenarios": {
+              "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+              "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+              "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+              "training_scenario_bank_frozen": true,
+              "training_scenario_count": 2,
+              "training_scenario_construction_seed": 42
+            }
+          },
+          "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+          "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+          "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+          "training_scenario_bank_frozen": true,
+          "training_scenario_count": 2,
+          "training_scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\training_losses.json",
+          "checkpoints": [
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\models\\agent_0_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\models\\agent_1_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\models\\agent_2_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\models\\agent_3_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\models\\agent_4_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\models\\agent_5_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\models\\agent_6_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\models\\agent_7_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\models\\agent_8_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\models\\agent_9_final.pt"
+          ]
+        }
+      },
+      "eval_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001421_084515_maddpg_eval_seed42",
+        "episodes": 2,
+        "updates": 0,
+        "metrics": {
+          "reward": -20.192756890417062,
+          "latency": 4.009211498357935,
+          "energy": 133.05790611420957,
+          "completion_rate": 0.5824358974358974
+        },
+        "convergence_metrics": {
+          "reward_auc": -20.192756890417062,
+          "final_reward": -23.15513840866919,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "formal_evaluation": true,
+          "evaluation_metrics": {
+            "N_gen": 179,
+            "N_done": 108,
+            "N_on_time": 82,
+            "TCR": 0.6033519553072626,
+            "DVR": 0.5418994413407822,
+            "p95_task_latency": 14.922500258143417,
+            "mean_latency": 4.18788691183053,
+            "system_energy_per_completed_task": 120.69595170696188,
+            "device_energy_per_completed_task": 1.6034887434281597,
+            "mean_decision_latency_ms": 6.525437986574463,
+            "p95_decision_latency_ms": 8.768829994369293,
+            "evaluation_reward": -20.19275689041706
+          },
+          "evaluation_metrics_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001421_084515_maddpg_eval_seed42\\evaluation_metrics.json",
+          "task_records_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001421_084515_maddpg_eval_seed42\\task_records.csv",
+          "task_record_count": 179,
+          "drain_horizon_steps": 5,
+          "exploration_enabled": false,
+          "llm_enabled": false,
+          "online_api_calls": 0,
+          "maps_eval_uses_llm": null,
+          "checkpoint_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001414_058173_maddpg_seed42\\models",
+          "allow_untrained": false,
+          "expert": {},
+          "scenario_bank_id": "ei-c6_s1_u10_medium_pilot-test-f637d70a3d9b9e0e",
+          "scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_test.json",
+          "scenario_bank_sha256": "41b7531cf60e455ef5c34eab37e638255880f7ea49c1bf26027f397be76a390e",
+          "scenario_bank_frozen": true,
+          "scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001421_084515_maddpg_eval_seed42\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001421_084515_maddpg_eval_seed42\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001421_084515_maddpg_eval_seed42\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001421_084515_maddpg_eval_seed42\\training_losses.json",
+          "evaluation_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001421_084515_maddpg_eval_seed42\\evaluation_metrics.json",
+          "task_records_csv": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001421_084515_maddpg_eval_seed42\\task_records.csv"
+        }
+      }
+    },
+    {
+      "algorithm": "maddpg",
+      "seed": 43,
+      "train_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43",
+        "episodes": 2,
+        "updates": 37,
+        "metrics": {
+          "reward": -24.422344918582247,
+          "latency": 27.4084267509389,
+          "energy": 502.97889028385896,
+          "completion_rate": 0.5263305322128851
+        },
+        "convergence_metrics": {
+          "reward_auc": -24.422344918582247,
+          "final_reward": -21.195582036958587,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "buffer_size": 40,
+          "joint_replay": true,
+          "centralized_critic": true,
+          "expert": {},
+          "hybrid_action": true,
+          "num_edges": 5,
+          "action_dim": 8,
+          "annealing": false,
+          "schedule_type": null,
+          "missed_expert_state_count": 0,
+          "missed_expert_states_path": null,
+          "distillation": {
+            "mode": "maddpg",
+            "eta_edge": 1.0,
+            "schedule": {
+              "type": "disabled",
+              "lambda_value": 0.0,
+              "progress_unit": "environment_steps"
+            },
+            "expert": {},
+            "global_step": 40,
+            "planned_environment_steps": 40,
+            "exploration_episodes": 1,
+            "final_progress": 1.0,
+            "final_lambda": 0.0,
+            "loss_scale": {},
+            "training_scenarios": {
+              "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+              "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+              "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+              "training_scenario_bank_frozen": true,
+              "training_scenario_count": 2,
+              "training_scenario_construction_seed": 42
+            }
+          },
+          "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+          "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+          "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+          "training_scenario_bank_frozen": true,
+          "training_scenario_count": 2,
+          "training_scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\training_losses.json",
+          "checkpoints": [
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\models\\agent_0_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\models\\agent_1_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\models\\agent_2_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\models\\agent_3_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\models\\agent_4_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\models\\agent_5_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\models\\agent_6_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\models\\agent_7_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\models\\agent_8_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\models\\agent_9_final.pt"
+          ]
+        }
+      },
+      "eval_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001428_535303_maddpg_eval_seed43",
+        "episodes": 2,
+        "updates": 0,
+        "metrics": {
+          "reward": -20.35549411870562,
+          "latency": 3.141815455654238,
+          "energy": 127.13452830758393,
+          "completion_rate": 0.5036538461538461
+        },
+        "convergence_metrics": {
+          "reward_auc": -20.35549411870562,
+          "final_reward": -23.85580696759154,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "formal_evaluation": true,
+          "evaluation_metrics": {
+            "N_gen": 179,
+            "N_done": 92,
+            "N_on_time": 77,
+            "TCR": 0.5139664804469274,
+            "DVR": 0.5698324022346368,
+            "p95_task_latency": 9.977417007672791,
+            "mean_latency": 3.0730538479258853,
+            "system_energy_per_completed_task": 120.94503193773163,
+            "device_energy_per_completed_task": 1.64677913872884,
+            "mean_decision_latency_ms": 6.628775971749142,
+            "p95_decision_latency_ms": 10.517199989408255,
+            "evaluation_reward": -20.35549411870562
+          },
+          "evaluation_metrics_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001428_535303_maddpg_eval_seed43\\evaluation_metrics.json",
+          "task_records_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001428_535303_maddpg_eval_seed43\\task_records.csv",
+          "task_record_count": 179,
+          "drain_horizon_steps": 5,
+          "exploration_enabled": false,
+          "llm_enabled": false,
+          "online_api_calls": 0,
+          "maps_eval_uses_llm": null,
+          "checkpoint_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001421_588113_maddpg_seed43\\models",
+          "allow_untrained": false,
+          "expert": {},
+          "scenario_bank_id": "ei-c6_s1_u10_medium_pilot-test-f637d70a3d9b9e0e",
+          "scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_test.json",
+          "scenario_bank_sha256": "41b7531cf60e455ef5c34eab37e638255880f7ea49c1bf26027f397be76a390e",
+          "scenario_bank_frozen": true,
+          "scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001428_535303_maddpg_eval_seed43\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001428_535303_maddpg_eval_seed43\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001428_535303_maddpg_eval_seed43\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001428_535303_maddpg_eval_seed43\\training_losses.json",
+          "evaluation_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001428_535303_maddpg_eval_seed43\\evaluation_metrics.json",
+          "task_records_csv": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001428_535303_maddpg_eval_seed43\\task_records.csv"
+        }
+      }
+    },
+    {
+      "algorithm": "mappo",
+      "seed": 42,
+      "train_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42",
+        "episodes": 2,
+        "updates": 2,
+        "metrics": {
+          "reward": -25.183779426530158,
+          "latency": 34.20568306061644,
+          "energy": 532.1063309294796,
+          "completion_rate": 0.5494343891402715
+        },
+        "convergence_metrics": {
+          "reward_auc": -25.183779426530158,
+          "final_reward": -19.933285630305154,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "hybrid_action": true,
+          "num_edges": 5,
+          "action_dim": 8,
+          "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+          "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+          "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+          "training_scenario_bank_frozen": true,
+          "training_scenario_count": 2,
+          "training_scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\training_losses.json",
+          "checkpoints": [
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\models\\agent_0_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\models\\agent_1_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\models\\agent_2_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\models\\agent_3_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\models\\agent_4_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\models\\agent_5_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\models\\agent_6_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\models\\agent_7_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\models\\agent_8_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\models\\agent_9_final.pt"
+          ]
+        }
+      },
+      "eval_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001431_152036_mappo_eval_seed42",
+        "episodes": 2,
+        "updates": 0,
+        "metrics": {
+          "reward": -19.88521789405784,
+          "latency": 3.8297297376556987,
+          "energy": 126.90877825014677,
+          "completion_rate": 0.5757692307692308
+        },
+        "convergence_metrics": {
+          "reward_auc": -19.88521789405784,
+          "final_reward": -22.12399623725805,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "formal_evaluation": true,
+          "evaluation_metrics": {
+            "N_gen": 179,
+            "N_done": 107,
+            "N_on_time": 83,
+            "TCR": 0.5977653631284916,
+            "DVR": 0.5363128491620112,
+            "p95_task_latency": 12.468567402720518,
+            "mean_latency": 4.082624343670921,
+            "system_energy_per_completed_task": 117.3345116292352,
+            "device_energy_per_completed_task": 1.5859542184765136,
+            "mean_decision_latency_ms": 29.064817875025366,
+            "p95_decision_latency_ms": 42.48910001479089,
+            "evaluation_reward": -19.885217894057842
+          },
+          "evaluation_metrics_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001431_152036_mappo_eval_seed42\\evaluation_metrics.json",
+          "task_records_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001431_152036_mappo_eval_seed42\\task_records.csv",
+          "task_record_count": 179,
+          "drain_horizon_steps": 5,
+          "exploration_enabled": false,
+          "llm_enabled": false,
+          "online_api_calls": 0,
+          "maps_eval_uses_llm": null,
+          "checkpoint_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001429_081473_mappo_seed42\\models",
+          "allow_untrained": false,
+          "expert": {},
+          "scenario_bank_id": "ei-c6_s1_u10_medium_pilot-test-f637d70a3d9b9e0e",
+          "scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_test.json",
+          "scenario_bank_sha256": "41b7531cf60e455ef5c34eab37e638255880f7ea49c1bf26027f397be76a390e",
+          "scenario_bank_frozen": true,
+          "scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001431_152036_mappo_eval_seed42\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001431_152036_mappo_eval_seed42\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001431_152036_mappo_eval_seed42\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001431_152036_mappo_eval_seed42\\training_losses.json",
+          "evaluation_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001431_152036_mappo_eval_seed42\\evaluation_metrics.json",
+          "task_records_csv": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001431_152036_mappo_eval_seed42\\task_records.csv"
+        }
+      }
+    },
+    {
+      "algorithm": "mappo",
+      "seed": 43,
+      "train_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43",
+        "episodes": 2,
+        "updates": 2,
+        "metrics": {
+          "reward": -24.33117584179822,
+          "latency": 33.12267313663423,
+          "energy": 542.8322753807186,
+          "completion_rate": 0.6050339366515838
+        },
+        "convergence_metrics": {
+          "reward_auc": -24.33117584179822,
+          "final_reward": -19.01841893772424,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "hybrid_action": true,
+          "num_edges": 5,
+          "action_dim": 8,
+          "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+          "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+          "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+          "training_scenario_bank_frozen": true,
+          "training_scenario_count": 2,
+          "training_scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\training_losses.json",
+          "checkpoints": [
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\models\\agent_0_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\models\\agent_1_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\models\\agent_2_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\models\\agent_3_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\models\\agent_4_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\models\\agent_5_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\models\\agent_6_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\models\\agent_7_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\models\\agent_8_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\models\\agent_9_final.pt"
+          ]
+        }
+      },
+      "eval_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001434_126177_mappo_eval_seed43",
+        "episodes": 2,
+        "updates": 0,
+        "metrics": {
+          "reward": -20.07943195787682,
+          "latency": 3.5210054895641956,
+          "energy": 134.22331892174842,
+          "completion_rate": 0.5325
+        },
+        "convergence_metrics": {
+          "reward_auc": -20.07943195787682,
+          "final_reward": -22.106834091217344,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "formal_evaluation": true,
+          "evaluation_metrics": {
+            "N_gen": 179,
+            "N_done": 98,
+            "N_on_time": 80,
+            "TCR": 0.547486033519553,
+            "DVR": 0.553072625698324,
+            "p95_task_latency": 16.321304854177292,
+            "mean_latency": 3.7215339725447514,
+            "system_energy_per_completed_task": 128.87126194139088,
+            "device_energy_per_completed_task": 1.7979491402784729,
+            "mean_decision_latency_ms": 25.93271396390823,
+            "p95_decision_latency_ms": 33.50499999942258,
+            "evaluation_reward": -20.07943195787682
+          },
+          "evaluation_metrics_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001434_126177_mappo_eval_seed43\\evaluation_metrics.json",
+          "task_records_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001434_126177_mappo_eval_seed43\\task_records.csv",
+          "task_record_count": 179,
+          "drain_horizon_steps": 5,
+          "exploration_enabled": false,
+          "llm_enabled": false,
+          "online_api_calls": 0,
+          "maps_eval_uses_llm": null,
+          "checkpoint_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001432_547720_mappo_seed43\\models",
+          "allow_untrained": false,
+          "expert": {},
+          "scenario_bank_id": "ei-c6_s1_u10_medium_pilot-test-f637d70a3d9b9e0e",
+          "scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_test.json",
+          "scenario_bank_sha256": "41b7531cf60e455ef5c34eab37e638255880f7ea49c1bf26027f397be76a390e",
+          "scenario_bank_frozen": true,
+          "scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001434_126177_mappo_eval_seed43\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001434_126177_mappo_eval_seed43\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001434_126177_mappo_eval_seed43\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001434_126177_mappo_eval_seed43\\training_losses.json",
+          "evaluation_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001434_126177_mappo_eval_seed43\\evaluation_metrics.json",
+          "task_records_csv": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001434_126177_mappo_eval_seed43\\task_records.csv"
+        }
+      }
+    },
+    {
+      "algorithm": "maps_no_annealing",
+      "seed": 42,
+      "train_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42",
+        "episodes": 2,
+        "updates": 37,
+        "metrics": {
+          "reward": -26.333845356515948,
+          "latency": 28.22539427452432,
+          "energy": 505.45992060014214,
+          "completion_rate": 0.5380952380952381
+        },
+        "convergence_metrics": {
+          "reward_auc": -26.333845356515944,
+          "final_reward": -20.48133759668248,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "buffer_size": 40,
+          "joint_replay": true,
+          "centralized_critic": true,
+          "expert": {
+            "source": "state_keyed_cache",
+            "state_hash": "ed08c0d4063dfa81cc9fdd3df023fb404075c8a24abff2ff480feb13621aff16",
+            "cache_hit": true,
+            "no_decision": false,
+            "cache_size": 944,
+            "cache_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache_c6_pilot.json",
+            "cache_sha256": "cc83715df37067f81fb5074900177e092e02cd024034cae7cbaa4fa5f525854d",
+            "cache_schema_version": "ei-cache-v1",
+            "cache_version": "ei-cache-v1",
+            "cache_stats": {
+              "total": 944,
+              "valid": 944,
+              "partial": 0,
+              "failed": 0,
+              "valid_rate": 1.0,
+              "parser_success_rate": 1.0,
+              "valid_action_count": 4507,
+              "action_count": 4507,
+              "valid_action_rate": 1.0,
+              "fallback_rate": 0.0,
+              "mean_latency_ms": 4767.066988983644,
+              "max_latency_ms": 62512.86449999316
+            },
+            "runtime_stats": {
+              "lookups": 40,
+              "hits": 40,
+              "misses": 0,
+              "unique_misses": 0,
+              "live_fills": 0,
+              "online_api_calls": 0,
+              "hit_rate": 1.0,
+              "decision_actions": 169,
+              "fallback_actions": 0,
+              "fallback_rate": 0.0
+            },
+            "fallback_policy": "all_local",
+            "live_fill_enabled": false,
+            "prompt_version": "ei-v1",
+            "provider": "xiaomi_mimo",
+            "requested_model": "mimo-v2.5",
+            "state_key_version": "ei-state-v1",
+            "paper_evidence": true
+          },
+          "hybrid_action": true,
+          "num_edges": 5,
+          "action_dim": 8,
+          "annealing": false,
+          "schedule_type": "FixedSchedule",
+          "missed_expert_state_count": 0,
+          "missed_expert_states_path": null,
+          "distillation": {
+            "mode": "maps_no_annealing",
+            "eta_edge": 1.0,
+            "schedule": {
+              "type": "fixed",
+              "lambda_value": 0.15,
+              "progress_unit": "environment_steps"
+            },
+            "expert": {
+              "source": "state_keyed_cache",
+              "state_hash": "ed08c0d4063dfa81cc9fdd3df023fb404075c8a24abff2ff480feb13621aff16",
+              "cache_hit": true,
+              "no_decision": false,
+              "cache_size": 944,
+              "cache_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache_c6_pilot.json",
+              "cache_sha256": "cc83715df37067f81fb5074900177e092e02cd024034cae7cbaa4fa5f525854d",
+              "cache_schema_version": "ei-cache-v1",
+              "cache_version": "ei-cache-v1",
+              "cache_stats": {
+                "total": 944,
+                "valid": 944,
+                "partial": 0,
+                "failed": 0,
+                "valid_rate": 1.0,
+                "parser_success_rate": 1.0,
+                "valid_action_count": 4507,
+                "action_count": 4507,
+                "valid_action_rate": 1.0,
+                "fallback_rate": 0.0,
+                "mean_latency_ms": 4767.066988983644,
+                "max_latency_ms": 62512.86449999316
+              },
+              "runtime_stats": {
+                "lookups": 40,
+                "hits": 40,
+                "misses": 0,
+                "unique_misses": 0,
+                "live_fills": 0,
+                "online_api_calls": 0,
+                "hit_rate": 1.0,
+                "decision_actions": 169,
+                "fallback_actions": 0,
+                "fallback_rate": 0.0
+              },
+              "fallback_policy": "all_local",
+              "live_fill_enabled": false,
+              "prompt_version": "ei-v1",
+              "provider": "xiaomi_mimo",
+              "requested_model": "mimo-v2.5",
+              "state_key_version": "ei-state-v1",
+              "paper_evidence": true
+            },
+            "global_step": 40,
+            "planned_environment_steps": 40,
+            "exploration_episodes": 1,
+            "final_progress": 1.0,
+            "final_lambda": 0.15,
+            "loss_scale": {
+              "mean_abs_policy_loss": 0.9560528436600155,
+              "mean_L_distill": 1.8181973215695975,
+              "mean_weighted_L_distill": 0.2727295982354395,
+              "guided_updates": 37,
+              "distill_to_policy_ratio": 1.901774921362162,
+              "weighted_distill_to_policy_ratio": 0.28526623820432423
+            },
+            "training_scenarios": {
+              "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+              "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+              "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+              "training_scenario_bank_frozen": true,
+              "training_scenario_count": 2,
+              "training_scenario_construction_seed": 42
+            }
+          },
+          "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+          "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+          "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+          "training_scenario_bank_frozen": true,
+          "training_scenario_count": 2,
+          "training_scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\training_losses.json",
+          "checkpoints": [
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\models\\agent_0_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\models\\agent_1_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\models\\agent_2_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\models\\agent_3_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\models\\agent_4_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\models\\agent_5_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\models\\agent_6_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\models\\agent_7_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\models\\agent_8_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\models\\agent_9_final.pt"
+          ]
+        }
+      },
+      "eval_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001443_509640_maps_no_annealing_eval_seed42",
+        "episodes": 2,
+        "updates": 0,
+        "metrics": {
+          "reward": -19.735893934179643,
+          "latency": 3.974267865560722,
+          "energy": 117.38875893986756,
+          "completion_rate": 0.5805769230769231
+        },
+        "convergence_metrics": {
+          "reward_auc": -19.735893934179643,
+          "final_reward": -22.061746821831544,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "formal_evaluation": true,
+          "evaluation_metrics": {
+            "N_gen": 179,
+            "N_done": 108,
+            "N_on_time": 78,
+            "TCR": 0.6033519553072626,
+            "DVR": 0.5642458100558659,
+            "p95_task_latency": 13.14031026963603,
+            "mean_latency": 4.267556086732761,
+            "system_energy_per_completed_task": 107.09352501870988,
+            "device_energy_per_completed_task": 1.6139698159141131,
+            "mean_decision_latency_ms": 6.21315475173461,
+            "p95_decision_latency_ms": 7.908399973530322,
+            "evaluation_reward": -19.73589393417964
+          },
+          "evaluation_metrics_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001443_509640_maps_no_annealing_eval_seed42\\evaluation_metrics.json",
+          "task_records_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001443_509640_maps_no_annealing_eval_seed42\\task_records.csv",
+          "task_record_count": 179,
+          "drain_horizon_steps": 5,
+          "exploration_enabled": false,
+          "llm_enabled": false,
+          "online_api_calls": 0,
+          "maps_eval_uses_llm": false,
+          "checkpoint_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001435_416895_maps_no_annealing_seed42\\models",
+          "allow_untrained": false,
+          "expert": {},
+          "scenario_bank_id": "ei-c6_s1_u10_medium_pilot-test-f637d70a3d9b9e0e",
+          "scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_test.json",
+          "scenario_bank_sha256": "41b7531cf60e455ef5c34eab37e638255880f7ea49c1bf26027f397be76a390e",
+          "scenario_bank_frozen": true,
+          "scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001443_509640_maps_no_annealing_eval_seed42\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001443_509640_maps_no_annealing_eval_seed42\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001443_509640_maps_no_annealing_eval_seed42\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001443_509640_maps_no_annealing_eval_seed42\\training_losses.json",
+          "evaluation_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001443_509640_maps_no_annealing_eval_seed42\\evaluation_metrics.json",
+          "task_records_csv": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001443_509640_maps_no_annealing_eval_seed42\\task_records.csv"
+        }
+      }
+    },
+    {
+      "algorithm": "maps_no_annealing",
+      "seed": 43,
+      "train_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43",
+        "episodes": 2,
+        "updates": 37,
+        "metrics": {
+          "reward": -23.76614698827367,
+          "latency": 26.109806542192246,
+          "energy": 502.9659181857369,
+          "completion_rate": 0.5263305322128851
+        },
+        "convergence_metrics": {
+          "reward_auc": -23.76614698827367,
+          "final_reward": -19.857380380700288,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "buffer_size": 40,
+          "joint_replay": true,
+          "centralized_critic": true,
+          "expert": {
+            "source": "state_keyed_cache",
+            "state_hash": "20d9b93cb16e3bc8221502c98cf33396cb21243f41f568aa713449b78bb0c976",
+            "cache_hit": true,
+            "no_decision": false,
+            "cache_size": 944,
+            "cache_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache_c6_pilot.json",
+            "cache_sha256": "cc83715df37067f81fb5074900177e092e02cd024034cae7cbaa4fa5f525854d",
+            "cache_schema_version": "ei-cache-v1",
+            "cache_version": "ei-cache-v1",
+            "cache_stats": {
+              "total": 944,
+              "valid": 944,
+              "partial": 0,
+              "failed": 0,
+              "valid_rate": 1.0,
+              "parser_success_rate": 1.0,
+              "valid_action_count": 4507,
+              "action_count": 4507,
+              "valid_action_rate": 1.0,
+              "fallback_rate": 0.0,
+              "mean_latency_ms": 4767.066988983644,
+              "max_latency_ms": 62512.86449999316
+            },
+            "runtime_stats": {
+              "lookups": 40,
+              "hits": 40,
+              "misses": 0,
+              "unique_misses": 0,
+              "live_fills": 0,
+              "online_api_calls": 0,
+              "hit_rate": 1.0,
+              "decision_actions": 169,
+              "fallback_actions": 0,
+              "fallback_rate": 0.0
+            },
+            "fallback_policy": "all_local",
+            "live_fill_enabled": false,
+            "prompt_version": "ei-v1",
+            "provider": "xiaomi_mimo",
+            "requested_model": "mimo-v2.5",
+            "state_key_version": "ei-state-v1",
+            "paper_evidence": true
+          },
+          "hybrid_action": true,
+          "num_edges": 5,
+          "action_dim": 8,
+          "annealing": false,
+          "schedule_type": "FixedSchedule",
+          "missed_expert_state_count": 0,
+          "missed_expert_states_path": null,
+          "distillation": {
+            "mode": "maps_no_annealing",
+            "eta_edge": 1.0,
+            "schedule": {
+              "type": "fixed",
+              "lambda_value": 0.15,
+              "progress_unit": "environment_steps"
+            },
+            "expert": {
+              "source": "state_keyed_cache",
+              "state_hash": "20d9b93cb16e3bc8221502c98cf33396cb21243f41f568aa713449b78bb0c976",
+              "cache_hit": true,
+              "no_decision": false,
+              "cache_size": 944,
+              "cache_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache_c6_pilot.json",
+              "cache_sha256": "cc83715df37067f81fb5074900177e092e02cd024034cae7cbaa4fa5f525854d",
+              "cache_schema_version": "ei-cache-v1",
+              "cache_version": "ei-cache-v1",
+              "cache_stats": {
+                "total": 944,
+                "valid": 944,
+                "partial": 0,
+                "failed": 0,
+                "valid_rate": 1.0,
+                "parser_success_rate": 1.0,
+                "valid_action_count": 4507,
+                "action_count": 4507,
+                "valid_action_rate": 1.0,
+                "fallback_rate": 0.0,
+                "mean_latency_ms": 4767.066988983644,
+                "max_latency_ms": 62512.86449999316
+              },
+              "runtime_stats": {
+                "lookups": 40,
+                "hits": 40,
+                "misses": 0,
+                "unique_misses": 0,
+                "live_fills": 0,
+                "online_api_calls": 0,
+                "hit_rate": 1.0,
+                "decision_actions": 169,
+                "fallback_actions": 0,
+                "fallback_rate": 0.0
+              },
+              "fallback_policy": "all_local",
+              "live_fill_enabled": false,
+              "prompt_version": "ei-v1",
+              "provider": "xiaomi_mimo",
+              "requested_model": "mimo-v2.5",
+              "state_key_version": "ei-state-v1",
+              "paper_evidence": true
+            },
+            "global_step": 40,
+            "planned_environment_steps": 40,
+            "exploration_episodes": 1,
+            "final_progress": 1.0,
+            "final_lambda": 0.15,
+            "loss_scale": {
+              "mean_abs_policy_loss": 1.0607837654549528,
+              "mean_L_distill": 1.809112990546871,
+              "mean_weighted_L_distill": 0.2713669485820306,
+              "guided_updates": 37,
+              "distill_to_policy_ratio": 1.7054493568450986,
+              "weighted_distill_to_policy_ratio": 0.2558174035267647
+            },
+            "training_scenarios": {
+              "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+              "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+              "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+              "training_scenario_bank_frozen": true,
+              "training_scenario_count": 2,
+              "training_scenario_construction_seed": 42
+            }
+          },
+          "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+          "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+          "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+          "training_scenario_bank_frozen": true,
+          "training_scenario_count": 2,
+          "training_scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\training_losses.json",
+          "checkpoints": [
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\models\\agent_0_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\models\\agent_1_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\models\\agent_2_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\models\\agent_3_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\models\\agent_4_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\models\\agent_5_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\models\\agent_6_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\models\\agent_7_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\models\\agent_8_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\models\\agent_9_final.pt"
+          ]
+        }
+      },
+      "eval_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001452_395348_maps_no_annealing_eval_seed43",
+        "episodes": 2,
+        "updates": 0,
+        "metrics": {
+          "reward": -19.355781234206226,
+          "latency": 3.8837793574828527,
+          "energy": 117.17660264882144,
+          "completion_rate": 0.5391666666666667
+        },
+        "convergence_metrics": {
+          "reward_auc": -19.355781234206226,
+          "final_reward": -21.246071510780016,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "formal_evaluation": true,
+          "evaluation_metrics": {
+            "N_gen": 179,
+            "N_done": 99,
+            "N_on_time": 76,
+            "TCR": 0.553072625698324,
+            "DVR": 0.5754189944134078,
+            "p95_task_latency": 16.366933837240573,
+            "mean_latency": 4.023049734071942,
+            "system_energy_per_completed_task": 110.6993705682552,
+            "device_energy_per_completed_task": 1.7143932046128065,
+            "mean_decision_latency_ms": 6.139106707395102,
+            "p95_decision_latency_ms": 7.641300035174936,
+            "evaluation_reward": -19.355781234206223
+          },
+          "evaluation_metrics_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001452_395348_maps_no_annealing_eval_seed43\\evaluation_metrics.json",
+          "task_records_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001452_395348_maps_no_annealing_eval_seed43\\task_records.csv",
+          "task_record_count": 179,
+          "drain_horizon_steps": 5,
+          "exploration_enabled": false,
+          "llm_enabled": false,
+          "online_api_calls": 0,
+          "maps_eval_uses_llm": false,
+          "checkpoint_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001444_024145_maps_no_annealing_seed43\\models",
+          "allow_untrained": false,
+          "expert": {},
+          "scenario_bank_id": "ei-c6_s1_u10_medium_pilot-test-f637d70a3d9b9e0e",
+          "scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_test.json",
+          "scenario_bank_sha256": "41b7531cf60e455ef5c34eab37e638255880f7ea49c1bf26027f397be76a390e",
+          "scenario_bank_frozen": true,
+          "scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001452_395348_maps_no_annealing_eval_seed43\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001452_395348_maps_no_annealing_eval_seed43\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001452_395348_maps_no_annealing_eval_seed43\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001452_395348_maps_no_annealing_eval_seed43\\training_losses.json",
+          "evaluation_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001452_395348_maps_no_annealing_eval_seed43\\evaluation_metrics.json",
+          "task_records_csv": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001452_395348_maps_no_annealing_eval_seed43\\task_records.csv"
+        }
+      }
+    },
+    {
+      "algorithm": "maps",
+      "seed": 42,
+      "train_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42",
+        "episodes": 2,
+        "updates": 37,
+        "metrics": {
+          "reward": -26.346985420868016,
+          "latency": 28.339819365359144,
+          "energy": 507.11589807254836,
+          "completion_rate": 0.5380952380952381
+        },
+        "convergence_metrics": {
+          "reward_auc": -26.346985420868016,
+          "final_reward": -20.50738707442571,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "buffer_size": 40,
+          "joint_replay": true,
+          "centralized_critic": true,
+          "expert": {
+            "source": "state_keyed_cache",
+            "state_hash": "a6c9705f2303a96c5c69e83fb3375fd76adaefc7b11faf494773e8a299a8e1b0",
+            "cache_hit": true,
+            "no_decision": false,
+            "cache_size": 944,
+            "cache_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache_c6_pilot.json",
+            "cache_sha256": "cc83715df37067f81fb5074900177e092e02cd024034cae7cbaa4fa5f525854d",
+            "cache_schema_version": "ei-cache-v1",
+            "cache_version": "ei-cache-v1",
+            "cache_stats": {
+              "total": 944,
+              "valid": 944,
+              "partial": 0,
+              "failed": 0,
+              "valid_rate": 1.0,
+              "parser_success_rate": 1.0,
+              "valid_action_count": 4507,
+              "action_count": 4507,
+              "valid_action_rate": 1.0,
+              "fallback_rate": 0.0,
+              "mean_latency_ms": 4767.066988983644,
+              "max_latency_ms": 62512.86449999316
+            },
+            "runtime_stats": {
+              "lookups": 40,
+              "hits": 40,
+              "misses": 0,
+              "unique_misses": 0,
+              "live_fills": 0,
+              "online_api_calls": 0,
+              "hit_rate": 1.0,
+              "decision_actions": 169,
+              "fallback_actions": 0,
+              "fallback_rate": 0.0
+            },
+            "fallback_policy": "all_local",
+            "live_fill_enabled": false,
+            "prompt_version": "ei-v1",
+            "provider": "xiaomi_mimo",
+            "requested_model": "mimo-v2.5",
+            "state_key_version": "ei-state-v1",
+            "paper_evidence": true
+          },
+          "hybrid_action": true,
+          "num_edges": 5,
+          "action_dim": 8,
+          "annealing": true,
+          "schedule_type": "AnnealingSchedule",
+          "missed_expert_state_count": 0,
+          "missed_expert_states_path": null,
+          "distillation": {
+            "mode": "maps",
+            "eta_edge": 1.0,
+            "schedule": {
+              "type": "annealing",
+              "lambda_high": 0.8,
+              "lambda_low": 0.15,
+              "stage1_end": 0.3,
+              "stage2_end": 0.7,
+              "progress_unit": "environment_steps"
+            },
+            "expert": {
+              "source": "state_keyed_cache",
+              "state_hash": "a6c9705f2303a96c5c69e83fb3375fd76adaefc7b11faf494773e8a299a8e1b0",
+              "cache_hit": true,
+              "no_decision": false,
+              "cache_size": 944,
+              "cache_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache_c6_pilot.json",
+              "cache_sha256": "cc83715df37067f81fb5074900177e092e02cd024034cae7cbaa4fa5f525854d",
+              "cache_schema_version": "ei-cache-v1",
+              "cache_version": "ei-cache-v1",
+              "cache_stats": {
+                "total": 944,
+                "valid": 944,
+                "partial": 0,
+                "failed": 0,
+                "valid_rate": 1.0,
+                "parser_success_rate": 1.0,
+                "valid_action_count": 4507,
+                "action_count": 4507,
+                "valid_action_rate": 1.0,
+                "fallback_rate": 0.0,
+                "mean_latency_ms": 4767.066988983644,
+                "max_latency_ms": 62512.86449999316
+              },
+              "runtime_stats": {
+                "lookups": 40,
+                "hits": 40,
+                "misses": 0,
+                "unique_misses": 0,
+                "live_fills": 0,
+                "online_api_calls": 0,
+                "hit_rate": 1.0,
+                "decision_actions": 169,
+                "fallback_actions": 0,
+                "fallback_rate": 0.0
+              },
+              "fallback_policy": "all_local",
+              "live_fill_enabled": false,
+              "prompt_version": "ei-v1",
+              "provider": "xiaomi_mimo",
+              "requested_model": "mimo-v2.5",
+              "state_key_version": "ei-state-v1",
+              "paper_evidence": true
+            },
+            "global_step": 40,
+            "planned_environment_steps": 40,
+            "exploration_episodes": 1,
+            "final_progress": 1.0,
+            "final_lambda": 0.0,
+            "loss_scale": {
+              "mean_abs_policy_loss": 0.5038259051740169,
+              "mean_L_distill": 1.8570920179287593,
+              "mean_weighted_L_distill": 0.6601433665057024,
+              "guided_updates": 24,
+              "distill_to_policy_ratio": 3.6859796188672287,
+              "weighted_distill_to_policy_ratio": 1.3102608653631949
+            },
+            "training_scenarios": {
+              "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+              "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+              "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+              "training_scenario_bank_frozen": true,
+              "training_scenario_count": 2,
+              "training_scenario_construction_seed": 42
+            }
+          },
+          "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+          "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+          "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+          "training_scenario_bank_frozen": true,
+          "training_scenario_count": 2,
+          "training_scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\training_losses.json",
+          "checkpoints": [
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\models\\agent_0_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\models\\agent_1_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\models\\agent_2_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\models\\agent_3_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\models\\agent_4_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\models\\agent_5_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\models\\agent_6_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\models\\agent_7_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\models\\agent_8_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\models\\agent_9_final.pt"
+          ]
+        }
+      },
+      "eval_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001500_711090_maps_eval_seed42",
+        "episodes": 2,
+        "updates": 0,
+        "metrics": {
+          "reward": -19.769660847937217,
+          "latency": 3.9229825201197297,
+          "energy": 119.46233173870064,
+          "completion_rate": 0.5757692307692308
+        },
+        "convergence_metrics": {
+          "reward_auc": -19.769660847937217,
+          "final_reward": -22.19507819752967,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "formal_evaluation": true,
+          "evaluation_metrics": {
+            "N_gen": 179,
+            "N_done": 107,
+            "N_on_time": 77,
+            "TCR": 0.5977653631284916,
+            "DVR": 0.5698324022346368,
+            "p95_task_latency": 13.091270721087376,
+            "mean_latency": 4.224726249883295,
+            "system_energy_per_completed_task": 109.01583063228819,
+            "device_energy_per_completed_task": 1.5935671025388949,
+            "mean_decision_latency_ms": 6.093397208453057,
+            "p95_decision_latency_ms": 7.3506999760866165,
+            "evaluation_reward": -19.769660847937217
+          },
+          "evaluation_metrics_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001500_711090_maps_eval_seed42\\evaluation_metrics.json",
+          "task_records_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001500_711090_maps_eval_seed42\\task_records.csv",
+          "task_record_count": 179,
+          "drain_horizon_steps": 5,
+          "exploration_enabled": false,
+          "llm_enabled": false,
+          "online_api_calls": 0,
+          "maps_eval_uses_llm": false,
+          "checkpoint_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001452_925593_maps_seed42\\models",
+          "allow_untrained": false,
+          "expert": {},
+          "scenario_bank_id": "ei-c6_s1_u10_medium_pilot-test-f637d70a3d9b9e0e",
+          "scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_test.json",
+          "scenario_bank_sha256": "41b7531cf60e455ef5c34eab37e638255880f7ea49c1bf26027f397be76a390e",
+          "scenario_bank_frozen": true,
+          "scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001500_711090_maps_eval_seed42\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001500_711090_maps_eval_seed42\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001500_711090_maps_eval_seed42\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001500_711090_maps_eval_seed42\\training_losses.json",
+          "evaluation_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001500_711090_maps_eval_seed42\\evaluation_metrics.json",
+          "task_records_csv": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001500_711090_maps_eval_seed42\\task_records.csv"
+        }
+      }
+    },
+    {
+      "algorithm": "maps",
+      "seed": 43,
+      "train_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43",
+        "episodes": 2,
+        "updates": 37,
+        "metrics": {
+          "reward": -23.843896817814,
+          "latency": 26.239386792702245,
+          "energy": 507.4471278497057,
+          "completion_rate": 0.5204481792717086
+        },
+        "convergence_metrics": {
+          "reward_auc": -23.843896817814,
+          "final_reward": -20.018068571405607,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "buffer_size": 40,
+          "joint_replay": true,
+          "centralized_critic": true,
+          "expert": {
+            "source": "state_keyed_cache",
+            "state_hash": "a3eb40365cd02477528bcc225d56e01bacbc31e6691ebd964c6277f6ae86228f",
+            "cache_hit": true,
+            "no_decision": false,
+            "cache_size": 944,
+            "cache_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache_c6_pilot.json",
+            "cache_sha256": "cc83715df37067f81fb5074900177e092e02cd024034cae7cbaa4fa5f525854d",
+            "cache_schema_version": "ei-cache-v1",
+            "cache_version": "ei-cache-v1",
+            "cache_stats": {
+              "total": 944,
+              "valid": 944,
+              "partial": 0,
+              "failed": 0,
+              "valid_rate": 1.0,
+              "parser_success_rate": 1.0,
+              "valid_action_count": 4507,
+              "action_count": 4507,
+              "valid_action_rate": 1.0,
+              "fallback_rate": 0.0,
+              "mean_latency_ms": 4767.066988983644,
+              "max_latency_ms": 62512.86449999316
+            },
+            "runtime_stats": {
+              "lookups": 40,
+              "hits": 40,
+              "misses": 0,
+              "unique_misses": 0,
+              "live_fills": 0,
+              "online_api_calls": 0,
+              "hit_rate": 1.0,
+              "decision_actions": 169,
+              "fallback_actions": 0,
+              "fallback_rate": 0.0
+            },
+            "fallback_policy": "all_local",
+            "live_fill_enabled": false,
+            "prompt_version": "ei-v1",
+            "provider": "xiaomi_mimo",
+            "requested_model": "mimo-v2.5",
+            "state_key_version": "ei-state-v1",
+            "paper_evidence": true
+          },
+          "hybrid_action": true,
+          "num_edges": 5,
+          "action_dim": 8,
+          "annealing": true,
+          "schedule_type": "AnnealingSchedule",
+          "missed_expert_state_count": 0,
+          "missed_expert_states_path": null,
+          "distillation": {
+            "mode": "maps",
+            "eta_edge": 1.0,
+            "schedule": {
+              "type": "annealing",
+              "lambda_high": 0.8,
+              "lambda_low": 0.15,
+              "stage1_end": 0.3,
+              "stage2_end": 0.7,
+              "progress_unit": "environment_steps"
+            },
+            "expert": {
+              "source": "state_keyed_cache",
+              "state_hash": "a3eb40365cd02477528bcc225d56e01bacbc31e6691ebd964c6277f6ae86228f",
+              "cache_hit": true,
+              "no_decision": false,
+              "cache_size": 944,
+              "cache_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache_c6_pilot.json",
+              "cache_sha256": "cc83715df37067f81fb5074900177e092e02cd024034cae7cbaa4fa5f525854d",
+              "cache_schema_version": "ei-cache-v1",
+              "cache_version": "ei-cache-v1",
+              "cache_stats": {
+                "total": 944,
+                "valid": 944,
+                "partial": 0,
+                "failed": 0,
+                "valid_rate": 1.0,
+                "parser_success_rate": 1.0,
+                "valid_action_count": 4507,
+                "action_count": 4507,
+                "valid_action_rate": 1.0,
+                "fallback_rate": 0.0,
+                "mean_latency_ms": 4767.066988983644,
+                "max_latency_ms": 62512.86449999316
+              },
+              "runtime_stats": {
+                "lookups": 40,
+                "hits": 40,
+                "misses": 0,
+                "unique_misses": 0,
+                "live_fills": 0,
+                "online_api_calls": 0,
+                "hit_rate": 1.0,
+                "decision_actions": 169,
+                "fallback_actions": 0,
+                "fallback_rate": 0.0
+              },
+              "fallback_policy": "all_local",
+              "live_fill_enabled": false,
+              "prompt_version": "ei-v1",
+              "provider": "xiaomi_mimo",
+              "requested_model": "mimo-v2.5",
+              "state_key_version": "ei-state-v1",
+              "paper_evidence": true
+            },
+            "global_step": 40,
+            "planned_environment_steps": 40,
+            "exploration_episodes": 1,
+            "final_progress": 1.0,
+            "final_lambda": 0.0,
+            "loss_scale": {
+              "mean_abs_policy_loss": 0.5737639309896622,
+              "mean_L_distill": 1.8772180452942848,
+              "mean_weighted_L_distill": 0.6736134295662245,
+              "guided_updates": 24,
+              "distill_to_policy_ratio": 3.2717602900836718,
+              "weighted_distill_to_policy_ratio": 1.1740254017089153
+            },
+            "training_scenarios": {
+              "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+              "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+              "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+              "training_scenario_bank_frozen": true,
+              "training_scenario_count": 2,
+              "training_scenario_construction_seed": 42
+            }
+          },
+          "training_scenario_bank_id": "ei-c6_s1_u10_medium_pilot-train-72d021d8bcc73a86",
+          "training_scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_train.json",
+          "training_scenario_bank_sha256": "d0de802438e6e47d3f54b480291e3362c6ece18a33eccad331bd1d948d6d8ad1",
+          "training_scenario_bank_frozen": true,
+          "training_scenario_count": 2,
+          "training_scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\training_losses.json",
+          "checkpoints": [
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\models\\agent_0_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\models\\agent_1_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\models\\agent_2_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\models\\agent_3_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\models\\agent_4_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\models\\agent_5_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\models\\agent_6_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\models\\agent_7_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\models\\agent_8_final.pt",
+            "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\models\\agent_9_final.pt"
+          ]
+        }
+      },
+      "eval_result": {
+        "status": "passed",
+        "run_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001509_633943_maps_eval_seed43",
+        "episodes": 2,
+        "updates": 0,
+        "metrics": {
+          "reward": -19.579360114520597,
+          "latency": 3.5699499662451304,
+          "energy": 121.58872256031103,
+          "completion_rate": 0.5247435897435897
+        },
+        "convergence_metrics": {
+          "reward_auc": -19.579360114520597,
+          "final_reward": -21.70986396389959,
+          "steps_to_threshold": null,
+          "threshold_status": "not_configured",
+          "threshold": null,
+          "threshold_patience": 5
+        },
+        "finite_metrics": true,
+        "extra": {
+          "formal_evaluation": true,
+          "evaluation_metrics": {
+            "N_gen": 179,
+            "N_done": 96,
+            "N_on_time": 76,
+            "TCR": 0.5363128491620112,
+            "DVR": 0.5754189944134078,
+            "p95_task_latency": 15.640117087108564,
+            "mean_latency": 3.612947146227541,
+            "system_energy_per_completed_task": 115.77536063483585,
+            "device_energy_per_completed_task": 1.7238975054493906,
+            "mean_decision_latency_ms": 6.884846925753684,
+            "p95_decision_latency_ms": 9.893599955830723,
+            "evaluation_reward": -19.579360114520597
+          },
+          "evaluation_metrics_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001509_633943_maps_eval_seed43\\evaluation_metrics.json",
+          "task_records_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001509_633943_maps_eval_seed43\\task_records.csv",
+          "task_record_count": 179,
+          "drain_horizon_steps": 5,
+          "exploration_enabled": false,
+          "llm_enabled": false,
+          "online_api_calls": 0,
+          "maps_eval_uses_llm": false,
+          "checkpoint_dir": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\training\\20260618_001501_210619_maps_seed43\\models",
+          "allow_untrained": false,
+          "expert": {},
+          "scenario_bank_id": "ei-c6_s1_u10_medium_pilot-test-f637d70a3d9b9e0e",
+          "scenario_bank_path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\scenario_banks\\c6_s1_u10_medium_pilot_test.json",
+          "scenario_bank_sha256": "41b7531cf60e455ef5c34eab37e638255880f7ea49c1bf26027f397be76a390e",
+          "scenario_bank_frozen": true,
+          "scenario_construction_seed": 42
+        },
+        "artifacts": {
+          "run_manifest": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001509_633943_maps_eval_seed43\\run_manifest.json",
+          "resolved_config": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001509_633943_maps_eval_seed43\\resolved_config.yaml",
+          "episode_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001509_633943_maps_eval_seed43\\episode_metrics.json",
+          "training_losses": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001509_633943_maps_eval_seed43\\training_losses.json",
+          "evaluation_metrics": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001509_633943_maps_eval_seed43\\evaluation_metrics.json",
+          "task_records_csv": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\pilot_gate\\evaluation\\20260618_001509_633943_maps_eval_seed43\\task_records.csv"
+        }
+      }
+    }
+  ],
+  "resolved_bank_config": {
+    "environment": {
+      "num_devices": 10,
+      "num_edges": 5,
+      "num_clouds": 1,
+      "action_space": {
+        "type": "continuous",
+        "dimension": 4
+      },
+      "device_config": {
+        "cpu_capacity": 2.0,
+        "memory_capacity": 4.0
+      },
+      "edge_config": {
+        "cpu_capacity": 8.0,
+        "memory_capacity": 16.0
+      },
+      "cloud_config": {
+        "cpu_capacity": 32.0,
+        "memory_capacity": 64.0
+      },
+      "task_config": {
+        "types": [
+          "computation_intensive",
+          "data_intensive",
+          "balanced"
+        ],
+        "min_computation": 100,
+        "max_computation": 1000,
+        "min_data_size": 1,
+        "max_data_size": 100,
+        "min_deadline": 10,
+        "max_deadline": 60
+      },
+      "name": "ei_s1_u10",
+      "physics_version": 2,
+      "debug": false,
+      "delta_t": 1.0
+    },
+    "network": {
+      "ue_to_edge_rate": "1e8",
+      "ue_to_cloud_total_rate": "1e7",
+      "edge_to_cloud_rate": "1e8"
+    },
+    "tasks": {
+      "simple_mode": false,
+      "simple_data_choices": [
+        100,
+        150,
+        200,
+        250
+      ],
+      "simple_deadline_multiplier": 3.0,
+      "generator_verbose": false,
+      "fixed_deadline_seconds": null,
+      "processing_density": "0.2e9",
+      "poisson_config": {
+        "base_arrival_rate": 0.5,
+        "time_pattern_enabled": false
+      },
+      "output_ratio": 0.1,
+      "semantic_type_weights": {
+        "video_analytics": 0.25,
+        "ar_vr": 0.25,
+        "ai_inference": 0.25,
+        "control": 0.25
+      },
+      "semantic_profiles": {
+        "video_analytics": {
+          "deadline_multiplier": 4.0
+        },
+        "ar_vr": {
+          "deadline_multiplier": 2.0
+        },
+        "ai_inference": {
+          "deadline_multiplier": 3.0
+        },
+        "control": {
+          "deadline_multiplier": 1.5
+        }
+      }
+    },
+    "reward": {
+      "type": "normalized",
+      "latency_weight": 0.5,
+      "energy_weight": 0.5,
+      "deadline_penalty": 1.0,
+      "energy_scope": "user"
+    },
+    "llm": {
+      "provider": "xiaomi_mimo",
+      "display_name": "MiMo-V2.5",
+      "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
+      "endpoint": "/chat/completions",
+      "model_name": "mimo-v2.5",
+      "api_key_env": "MIMO_API_KEY",
+      "temperature": 0.0,
+      "max_completion_tokens": 4096,
+      "enable_thinking": false,
+      "query_frequency": 1
+    },
+    "maddpg": {
+      "lr_actor": 0.0003,
+      "lr_critic": 0.0003,
+      "gamma": 0.99,
+      "tau": 0.005,
+      "buffer_size": 100000,
+      "batch_size": 256,
+      "max_episodes": 300,
+      "max_steps": 100,
+      "num_agents": 10,
+      "actor_hidden_dims": [
+        128,
+        64
+      ],
+      "critic_hidden_dims": [
+        256,
+        128
+      ],
+      "train_frequency": 20,
+      "noise_type": "ou",
+      "noise_theta": 0.15,
+      "noise_sigma": 0.2,
+      "noise_decay": 0.995
+    },
+    "happo": {
+      "lr_actor": 0.0003,
+      "lr_critic": 0.001,
+      "gamma": 0.99,
+      "lam": 0.95,
+      "clip_range": 0.2,
+      "kl_coeff": 0.5,
+      "entropy_coeff": 0.01,
+      "value_coeff": 0.5,
+      "update_epochs": 4,
+      "batch_size": 64,
+      "max_episodes": 200,
+      "max_steps": 200
+    },
+    "mappo": {
+      "lr_actor": 0.0003,
+      "lr_critic": 0.001,
+      "gamma": 0.99,
+      "lam": 0.95,
+      "clip_range": 0.2,
+      "entropy_coeff": 0.01,
+      "value_coeff": 0.5,
+      "update_epochs": 4,
+      "batch_size": 64,
+      "max_episodes": 200,
+      "max_steps": 200
+    },
+    "seed": 42,
+    "model_version": 2,
+    "ei": {
+      "scenario_family": "ei",
+      "scenario_name": "s1_u10",
+      "deadline_profile": "medium",
+      "config_sources": [
+        "D:\\Lab_WSPN\\LLM4RL\\configs\\ei\\base.yaml",
+        "D:\\Lab_WSPN\\LLM4RL\\configs\\ei\\scales\\s1_u10.yaml",
+        "D:\\Lab_WSPN\\LLM4RL\\configs\\ei\\deadlines\\medium.yaml"
+      ],
+      "environment_fingerprint": "41f8be7e13bc5d80ddaf10a03c58489947f1619ca1930672df67d0839c5b1bfa",
+      "resolved_config_hash": "2745495d9986693415fee64af4a8cbb3b96a91f1db2f88f6117e9f29f34e741a"
+    },
+    "device_specs": {
+      "user_equipment": {
+        "count": 10,
+        "cpu_frequency_range": [
+          0.5,
+          0.8
+        ],
+        "alpha_ue": "1e-10",
+        "transmission_power": 0.5,
+        "transmission_rate_to_edge": "1e8",
+        "transmission_rate_to_cloud": "1e9"
+      },
+      "edge_servers": {
+        "count": 5,
+        "cpu_frequencies": [
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "alpha_es": "3e-10",
+        "transmission_rate_to_cloud": "1e8"
+      },
+      "cloud_servers": {
+        "count": 1,
+        "cpu_frequency": 20,
+        "alpha_cs": "3e-10",
+        "parallel_factor": 8.0
+      }
+    },
+    "channel": {
+      "bandwidth_hz": "1e6",
+      "transmit_power_w": 0.5,
+      "noise_psd_w_hz": "1e-17",
+      "path_loss_exponent": 3.0,
+      "ref_distance_m": 1.0,
+      "ref_distance_gain_db": 0.0,
+      "default_distance_m": 100.0,
+      "downlink_transmit_power_w": 0.5,
+      "rate_normalization_bps": "100e6"
+    },
+    "backhaul": {
+      "rate_bps": "1e9",
+      "energy_per_bit": "1e-9",
+      "propagation_latency_s": 0.002
+    },
+    "energy": {
+      "kappa_ue": "1e-28",
+      "kappa_es": "3e-28",
+      "kappa_cs": "3e-28"
+    },
+    "legacy_maps": {
+      "max_episodes": 20,
+      "max_steps": 10,
+      "train_frequency": 4,
+      "distill_weight": 0.2,
+      "expert_cache": "fixtures/legacy_expert_cache.json"
+    },
+    "llm_maddpg": {
+      "inherit_from": "maddpg",
+      "max_episodes": 300,
+      "max_steps": 100,
+      "train_frequency": 20,
+      "eta_edge": 1.0,
+      "initial_llm_distill_weight": 0.8,
+      "constant_llm_distill_weight": 0.15,
+      "stage1_end_progress": 0.3,
+      "stage2_end_progress": 0.7,
+      "exploration_episodes": 150
+    },
+    "expert_cache": {
+      "format": "state_keyed",
+      "path": "D:\\Lab_WSPN\\LLM4RL\\artifacts\\ei\\expert_cache_c6_pilot.json",
+      "fallback_policy": "all_local"
+    },
+    "llm_only": {
+      "max_episodes": 200,
+      "max_steps": 200,
+      "require_full_cache_coverage": true,
+      "scenario_bank": "artifacts/ei/expert_scenario_bank.json"
+    },
+    "greedy_min_cost": {
+      "max_episodes": 100,
+      "max_steps": 100
+    },
+    "training": {
+      "episodes": 300,
+      "max_steps_per_episode": 100,
+      "save_frequency": 50,
+      "log_frequency": 10,
+      "warm_up_episodes": 0
+    },
+    "testing": {
+      "num_episodes": 100,
+      "max_steps": 100,
+      "save_results": true,
+      "detailed_logging": true
+    },
+    "evaluation": {
+      "scenario_bank": null,
+      "window_steps": 100,
+      "drain_horizon_steps": 20,
+      "reward_threshold": null,
+      "threshold_patience": 5,
+      "require_full_cache_coverage": true,
+      "allow_untrained": false
+    }
+  }
+}

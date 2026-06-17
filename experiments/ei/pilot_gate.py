@@ -158,6 +158,36 @@ def _load_expert_cache_stats(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _with_expert_cache_path(
+    config: dict[str, Any],
+    expert_cache_path: str | Path | None = None,
+) -> dict[str, Any]:
+    if expert_cache_path is None:
+        return config
+    output = copy.deepcopy(config)
+    output.setdefault("expert_cache", {})["path"] = str(
+        resolve_project_path(expert_cache_path)
+    )
+    return output
+
+
+def _with_live_fill(
+    config: dict[str, Any],
+    *,
+    cache_output_path: str | Path | None,
+    live_fill_config: str | Path | None,
+) -> dict[str, Any]:
+    if cache_output_path is None:
+        return config
+    output = copy.deepcopy(config)
+    expert_cfg = output.setdefault("expert_cache", {})
+    expert_cfg["live_fill_on_miss"] = True
+    expert_cfg["live_fill_output"] = str(resolve_project_path(cache_output_path))
+    if live_fill_config is not None:
+        expert_cfg["live_fill_config"] = str(resolve_project_path(live_fill_config))
+    return output
+
+
 def _runtime_cache_stats(record: dict[str, Any]) -> dict[str, Any] | None:
     train_extra = record.get("train_result", {}).get("extra", {})
     train_stats = _metric(train_extra, ("distillation", "expert", "runtime_stats"))
@@ -484,6 +514,9 @@ def run_pilot_gate(
     deadline_config: str | Path,
     pilot_config: str | Path | None,
     extra_fragments: list[str | Path],
+    expert_cache_path: str | Path | None,
+    live_fill_cache_output: str | Path | None,
+    live_fill_config: str | Path | None,
     output_root: str | Path,
     scenario_id: str,
     train_scenario_seeds: list[int],
@@ -506,6 +539,7 @@ def run_pilot_gate(
         base_config,
         [scale_config, deadline_config, *extra_fragments],
     )
+    bank_config = _with_expert_cache_path(bank_config, expert_cache_path)
     bank_info = build_pilot_scenario_banks(
         config=bank_config,
         output_dir=output_root / "scenario_banks",
@@ -533,6 +567,12 @@ def run_pilot_gate(
             config,
             train_bank=bank_info["train_bank"],
             test_bank=bank_info["test_bank"],
+        )
+        config = _with_expert_cache_path(config, expert_cache_path)
+        config = _with_live_fill(
+            config,
+            cache_output_path=live_fill_cache_output,
+            live_fill_config=live_fill_config,
         )
         config = _override_short_budget(
             config,
@@ -594,6 +634,15 @@ def run_pilot_gate(
             if pilot_config
             else None,
             "extra_fragments": [str(resolve_project_path(item)) for item in extra_fragments],
+            "expert_cache_path": str(resolve_project_path(expert_cache_path))
+            if expert_cache_path
+            else None,
+            "live_fill_cache_output": str(resolve_project_path(live_fill_cache_output))
+            if live_fill_cache_output
+            else None,
+            "live_fill_config": str(resolve_project_path(live_fill_config))
+            if live_fill_config
+            else None,
             "algorithms": algorithms,
             "seeds": seeds,
             "train_scenario_seeds": train_scenario_seeds,
@@ -628,6 +677,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--deadline-config", default=DEFAULT_DEADLINE_CONFIG)
     parser.add_argument("--pilot-config", default=DEFAULT_PILOT_CONFIG)
     parser.add_argument("--fragment", action="append", default=[])
+    parser.add_argument(
+        "--expert-cache",
+        default=pilot_defaults.get("expert_cache"),
+        help="Override expert_cache.path, useful for iterative C6 cache expansion.",
+    )
+    parser.add_argument(
+        "--live-fill-cache-output",
+        help=(
+            "Enable MiMo-on-miss during training and save filled entries to this "
+            "cache copy. Use only for cache prefill, then rerun frozen."
+        ),
+    )
+    parser.add_argument(
+        "--live-fill-config",
+        default="configs/ei/llm_mimo.yaml",
+        help="LLM config used with --live-fill-cache-output.",
+    )
     parser.add_argument(
         "--algorithms",
         default=",".join(pilot_defaults.get("algorithms", REQUIRED_PILOT_ALGORITHMS)),
@@ -714,6 +780,9 @@ def main() -> int:
         deadline_config=args.deadline_config,
         pilot_config=args.pilot_config,
         extra_fragments=args.fragment,
+        expert_cache_path=args.expert_cache,
+        live_fill_cache_output=args.live_fill_cache_output,
+        live_fill_config=args.live_fill_config,
         output_root=args.output_root,
         scenario_id=args.scenario_id,
         train_scenario_seeds=parse_csv_ints(args.train_scenario_seeds),

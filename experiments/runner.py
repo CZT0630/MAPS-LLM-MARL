@@ -35,6 +35,8 @@ from LLM4RL.llm_assistant.ei_state import (
 )
 from LLM4RL.llm_assistant.expert_cache import ExpertCache, hash_state
 from LLM4RL.llm_assistant.expert_provider import FixedCacheExpertProvider
+from LLM4RL.llm_assistant.llm_client import LLMClient
+from LLM4RL.utils.config import load_config
 from LLM4RL.utils.run_manifest import (
     build_manifest,
     sanitize_config,
@@ -94,6 +96,10 @@ def _artifact_index(run_dir: Path) -> dict[str, Any]:
         artifacts["evaluation_metrics"] = str(run_dir / "evaluation_metrics.json")
     if (run_dir / "task_records.csv").exists():
         artifacts["task_records_csv"] = str(run_dir / "task_records.csv")
+    if (run_dir / "missed_expert_states.json").exists():
+        artifacts["missed_expert_states"] = str(
+            run_dir / "missed_expert_states.json"
+        )
     model_paths = sorted((run_dir / "models").glob("*_final.pt"))
     if model_paths:
         artifacts["checkpoints"] = [str(path) for path in model_paths]
@@ -218,6 +224,16 @@ def _make_maps_expert_provider(
     fallback_policy = str(
         expert_cfg.get("fallback_policy", "all_local")
     )
+    live_client = None
+    live_fill_output = None
+    if bool(expert_cfg.get("live_fill_on_miss", False)):
+        llm_config_path = _resolve_project_path(
+            expert_cfg.get("live_fill_config", "configs/ei/llm_mimo.yaml")
+        )
+        live_client = LLMClient(load_config(str(llm_config_path)))
+        live_fill_output = _resolve_project_path(
+            expert_cfg.get("live_fill_output", cache_path)
+        )
     if cache_format == "fixed":
         return FixedCacheExpertProvider(
             cache_path=cache_path,
@@ -246,6 +262,8 @@ def _make_maps_expert_provider(
         num_agents=num_agents,
         num_edges=num_edges,
         fallback_policy=fallback_policy,
+        live_client=live_client,
+        cache_output_path=live_fill_output,
     )
 
 
@@ -874,6 +892,28 @@ def _run_maddpg_family(
                 "distillation": distillation_metadata,
             },
         )
+    missed_expert_state_count = 0
+    missed_expert_states_path = None
+    if isinstance(expert_provider, CachedExpertProvider):
+        missed_records = expert_provider.missing_state_records()
+        missed_expert_state_count = len(missed_records)
+        if missed_records:
+            missed_expert_states_path = run_dir / "missed_expert_states.json"
+            missed_payload = {
+                "schema_version": "ei-missed-expert-states-v1",
+                "algorithm": algorithm,
+                "seed": seed,
+                "cache_path": expert_provider.cache.source_path,
+                "cache_sha256": expert_provider.cache.file_sha256,
+                "prompt_version": expert_provider.cache.prompt_version,
+                "state_key_version": expert_provider.cache.state_key_version,
+                "missed_state_count": missed_expert_state_count,
+                "records": missed_records,
+            }
+            missed_expert_states_path.write_text(
+                json.dumps(missed_payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
 
     return _finalize_run(
         run_dir,
@@ -891,6 +931,12 @@ def _run_maddpg_family(
             "annealing": isinstance(schedule, AnnealingSchedule),
             "schedule_type": (
                 type(schedule).__name__ if schedule is not None else None
+            ),
+            "missed_expert_state_count": missed_expert_state_count,
+            "missed_expert_states_path": (
+                str(missed_expert_states_path)
+                if missed_expert_states_path is not None
+                else None
             ),
             "distillation": distillation_metadata,
             **training_scenario_metadata,

@@ -402,10 +402,18 @@ class TestCachedProvider:
             num_agents=2,
             num_edges=3,
         )
-        batch = provider.get_actions({"missing": True})
+        missing_state = {"missing": True}
+        batch = provider.get_actions(missing_state)
         assert batch.valid_mask.tolist() == [0.0, 0.0]
         assert batch.metadata["runtime_stats"]["fallback_rate"] == 1.0
+        assert batch.metadata["runtime_stats"]["unique_misses"] == 1
         assert batch.metadata["paper_evidence"] is False
+        assert provider.missing_state_records() == [
+            {
+                "state_hash": hash_state(missing_state),
+                "state": missing_state,
+            }
+        ]
 
     def test_noop_state_does_not_count_as_cache_miss(self):
         provider = CachedExpertProvider(
@@ -433,6 +441,83 @@ class TestCachedProvider:
         batch = provider.get_actions(state)
         assert batch.valid_mask.tolist() == [1.0, 0.0]
         assert provider.runtime_stats()["decision_actions"] == 1
+        assert provider.runtime_stats()["fallback_actions"] == 0
+
+    def test_live_fill_on_miss_writes_cache_entry(self, tmp_path):
+        class FakeClient:
+            def __init__(self):
+                self.calls = 0
+                self.last_metadata = {}
+
+            def query(self, _prompt):
+                self.calls += 1
+                self.last_metadata = _metadata("req-live-fill")
+                return _raw_actions(include_second=False)
+
+        state = {
+            "state_key_version": "ei-state-v1",
+            "num_edges": 2,
+            "ue_states": [
+                {
+                    "device_id": 0,
+                    "cpu_frequency": 0.5,
+                    "pending_queue_size": 0,
+                    "queue_load": 0.0,
+                    "ue_to_edge_rates": [1.0, 1.0],
+                }
+            ],
+            "es_states": [
+                {"server_id": 0, "cpu_frequency": 5.0, "queue_load": 0.0},
+                {"server_id": 1, "cpu_frequency": 6.0, "queue_load": 0.0},
+            ],
+            "cs_states": [
+                {
+                    "server_id": 0,
+                    "cpu_frequency": 20.0,
+                    "queue_load": 0.0,
+                    "parallel_factor": 8.0,
+                }
+            ],
+            "backhaul": {
+                "rate_bps": 1e9,
+                "energy_per_bit": 1e-9,
+                "propagation_latency_s": 0.002,
+            },
+            "tasks": [
+                {
+                    "task_id": "task-0",
+                    "device_id": 0,
+                    "data_size": 100.0,
+                    "cpu_cycles": 1000.0,
+                    "deadline_slack": 1.0,
+                    "semantic_type": "control",
+                    "priority": 1,
+                    "output_ratio": 0.1,
+                }
+            ],
+        }
+        cache = ExpertCache("ei-v1", "xiaomi_mimo", "mimo-v2.5")
+        output_path = tmp_path / "filled-cache.json"
+        client = FakeClient()
+        provider = CachedExpertProvider(
+            cache,
+            num_agents=1,
+            num_edges=2,
+            live_client=client,
+            cache_output_path=output_path,
+        )
+
+        first = provider.get_actions(state)
+        second = provider.get_actions(state)
+
+        assert first.valid_mask.tolist() == [1.0]
+        assert second.valid_mask.tolist() == [1.0]
+        assert client.calls == 1
+        assert output_path.exists()
+        assert cache.has(hash_state(state))
+        assert provider.runtime_stats()["misses"] == 1
+        assert provider.runtime_stats()["hits"] == 1
+        assert provider.runtime_stats()["live_fills"] == 1
         assert provider.runtime_stats()["fallback_actions"] == 0
 
 

@@ -7,6 +7,9 @@ htmlcov/
 results/
 logs/
 *.log
+artifacts/ei/pilot_gate/
+artifacts/ei/pilot_gate*/
+artifacts/ei/cache_expansion/
 
 .idea/
 .vscode/

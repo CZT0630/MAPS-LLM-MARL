@@ -654,6 +654,47 @@ README.md                             (更新: C6 runner 入口和项目状态)
   runtime cache coverage、AUC、DVR/TCR 和 fixed/annealed 差异。
 - `gate_passed` 只表示当前报告通过门禁；runner 实现完成不等于正式 pilot 已通过。
 
+**C6 首次完整 pilot 诊断（2026-06-17）：**
+
+`python -m experiments.ei.pilot_gate --output-root artifacts/ei/pilot_gate`
+已完成四方法、两 seed 的短 pilot。训练与评估均通过，部署期 API 调用为 0，但
+`gate_passed=false`：
+
+- `expert_cache_runtime_coverage_high=false`：MAPS 与 MAPS fixed 训练时 cache hit
+  为 0，miss/fallback 为 100%。
+- `fixed_and_annealed_measurably_differ=false`：由于专家先验没有实际命中，
+  fixed 和 annealed 训练信号退化为相同。
+- `maps_auc_not_below_maddpg=true`、DVR/TCR 未退化、离线 cache 质量仍为 100%。
+
+已新增 cache-miss 闭环：
+
+```text
+llm_assistant/cached_expert_provider.py        (记录 unique missed states)
+experiments/runner.py                         (写出 missed_expert_states.json)
+scripts/expand_expert_cache_from_states.py    (从 miss artifacts 调用 MiMo 补 cache)
+```
+
+随后使用 live-fill 预采样只补训练期 cache miss，并将结果冻结为：
+
+```text
+artifacts/ei/expert_cache_c6_pilot.json
+```
+
+该 cache 共 944 entries，parser success 100%，valid action rate 100%，fallback rate 0%。
+关闭 live-fill 后用该 frozen cache 重跑 C6，最终 `gate_passed=true`：
+
+- `expert_cache_runtime_coverage_high=true`：MAPS 与 MAPS fixed 训练期 cache miss
+  和 fallback 均为 0。
+- `fixed_and_annealed_measurably_differ=true`。
+- `maps_auc_not_below_maddpg=true`。
+- evaluation 阶段 `online_api_calls=0`，MAPS 部署只使用 actor，不调用 LLM。
+
+通过报告已保存为：
+
+```text
+artifacts/ei/c6_pilot_gate_report.json
+```
+
 ## 7. 最终实验方案
 
 ### 7.1 场景
@@ -1016,8 +1057,8 @@ loss、queue backlog、per-node utilization、device energy、expert similarity 
 3. 完成 C3 真实 expert cache 与 LLM-only。
 4. 完成 C4 指标、drain horizon 和正式 evaluation。
 5. 完成 C5 scenario bank、配置与 artifact pipeline。
-6. 运行并检查 C6 两 seed pilot gate 报告。
-7. Pilot gate 报告通过后运行 5-seed 正式矩阵。
+6. 完成 C6 两 seed pilot gate。
+7. 运行 5-seed 正式矩阵。
 8. 自动生成图表与统计表。
 9. 建立 `paper/ei/`，按第 8 节重写论文。
 10. 做符号、单位、引用、claim 和匿名化审计。
@@ -1057,11 +1098,9 @@ loss、queue backlog、per-node utilization、device energy、expert similarity 
 
 ## 13. 当前下一步
 
-当前最先执行的不是继续增加 baseline，也不是开始跑正式大实验，而是：
+当前最先执行的不是继续增加 baseline，而是：
 
-> 运行并检查 C6 两 seed pilot gate 报告。
+> 运行 5-seed 正式矩阵。
 
-在 C6 pilot 通过前，现有 `legacy_maps`、Greedy smoke、Phase 2 smoke、C3 cache、
-C4 evaluation smoke 和 C5 scenario bank 只能证明工程路径、专家证据链、评估协议
-与实验 pipeline 可运行；C6 runner 只能证明 pilot gate 可执行，不能替代
-`pilot_gate.json` 的通过结论。
+C6 已用冻结 cache 通过两 seed pilot gate。下一阶段可以进入正式实验，但仍不能直接
+写论文最终结论；必须等 5-seed 正式矩阵、统计汇总和图表审计完成后再写结果 claim。
