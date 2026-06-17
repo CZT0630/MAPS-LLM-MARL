@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import copy
+import csv
 import hashlib
 import json
 import math
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -135,8 +137,11 @@ def _episode_metrics(
     latencies: list[float],
     energies: list[float],
     completion_stats: dict[str, Any],
+    *,
+    environment_steps: int | None = None,
+    episode_index: int | None = None,
 ) -> dict[str, float]:
-    return {
+    metrics = {
         "reward": float(np.mean(reward_steps)) if reward_steps else 0.0,
         "latency": float(np.mean(latencies)) if latencies else 0.0,
         "energy": float(np.mean(energies)) if energies else 0.0,
@@ -144,6 +149,202 @@ def _episode_metrics(
             completion_stats.get("on_time_completion_rate", 0.0)
         ),
     }
+    if environment_steps is not None:
+        metrics["environment_steps"] = int(environment_steps)
+    if episode_index is not None:
+        metrics["episode"] = int(episode_index)
+    return metrics
+
+
+def _convergence_metrics(
+    episodes: list[dict[str, float]],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    if not episodes:
+        return {
+            "reward_auc": None,
+            "final_reward": None,
+            "steps_to_threshold": None,
+            "threshold_status": "no_episodes",
+        }
+    rewards = np.asarray([float(item["reward"]) for item in episodes], dtype=np.float64)
+    steps = np.asarray(
+        [
+            float(item.get("environment_steps", index + 1))
+            for index, item in enumerate(episodes)
+        ],
+        dtype=np.float64,
+    )
+    if len(rewards) == 1 or steps[-1] <= steps[0]:
+        reward_auc = float(rewards[-1])
+    else:
+        reward_auc = float(np.trapz(rewards, steps) / (steps[-1] - steps[0]))
+
+    tail_count = max(1, int(math.ceil(0.1 * len(rewards))))
+    final_reward = float(np.mean(rewards[-tail_count:]))
+
+    evaluation_cfg = config.get("evaluation", {})
+    threshold = evaluation_cfg.get("reward_threshold")
+    patience = int(evaluation_cfg.get("threshold_patience", 5))
+    if threshold is None:
+        return {
+            "reward_auc": reward_auc,
+            "final_reward": final_reward,
+            "steps_to_threshold": None,
+            "threshold_status": "not_configured",
+            "threshold": None,
+            "threshold_patience": patience,
+        }
+    threshold = float(threshold)
+    patience = max(1, patience)
+    steps_to_threshold = None
+    for index in range(0, len(rewards) - patience + 1):
+        if np.all(rewards[index : index + patience] >= threshold):
+            steps_to_threshold = int(steps[index])
+            break
+    return {
+        "reward_auc": reward_auc,
+        "final_reward": final_reward,
+        "steps_to_threshold": steps_to_threshold,
+        "threshold_status": (
+            "reached" if steps_to_threshold is not None else "not_reached"
+        ),
+        "threshold": threshold,
+        "threshold_patience": patience,
+    }
+
+
+C4_TASK_RECORD_FIELDS = [
+    "task_id",
+    "scenario_id",
+    "arrival_time",
+    "deadline",
+    "completion_time",
+    "latency",
+    "completed",
+    "completed_on_time",
+    "device_energy_j",
+    "system_energy_j",
+    "decision_latency_ms",
+    "ue_id",
+    "arrival_slot",
+    "task_type",
+    "semantic_type",
+    "priority",
+    "data_size_mb",
+    "cpu_cycles",
+    "predicted_completion_time",
+    "predicted_latency",
+    "failure_reason",
+]
+
+
+def _finalize_c4_task_records(
+    records: list[dict[str, Any]],
+    *,
+    evaluation_end_time: float,
+    drain_end_time: float,
+) -> list[dict[str, Any]]:
+    finalized = []
+    for record in records:
+        if float(record["arrival_time"]) >= evaluation_end_time:
+            continue
+        output = copy.deepcopy(record)
+        predicted_completion = output.get("completion_time")
+        predicted_latency = output.get("latency")
+        output["predicted_completion_time"] = predicted_completion
+        output["predicted_latency"] = predicted_latency
+        completed = (
+            predicted_completion is not None
+            and float(predicted_completion) <= drain_end_time + 1e-9
+        )
+        output["completed"] = bool(completed)
+        if completed:
+            latency = float(predicted_latency)
+            output["completion_time"] = float(predicted_completion)
+            output["latency"] = latency
+            output["completed_on_time"] = (
+                output["completion_time"]
+                <= float(output["arrival_time"]) + float(output["deadline"]) + 1e-9
+            )
+        else:
+            output["completion_time"] = None
+            output["latency"] = None
+            output["completed_on_time"] = False
+            output["failure_reason"] = output.get("failure_reason") or (
+                "not_completed_before_drain_horizon"
+            )
+        finalized.append(output)
+    return finalized
+
+
+def _percentile_or_none(values: list[float], percentile: float) -> float | None:
+    return float(np.percentile(values, percentile)) if values else None
+
+
+def _mean_or_none(values: list[float]) -> float | None:
+    return float(np.mean(values)) if values else None
+
+
+def _c4_metrics(
+    records: list[dict[str, Any]],
+    reward_steps: list[float] | None = None,
+) -> dict[str, Any]:
+    n_gen = len(records)
+    completed = [record for record in records if record["completed"]]
+    on_time = [record for record in records if record["completed_on_time"]]
+    latencies = [float(record["latency"]) for record in completed]
+    system_energies = [float(record["system_energy_j"]) for record in completed]
+    device_energies = [float(record["device_energy_j"]) for record in completed]
+    decision_latencies = [
+        float(record["decision_latency_ms"])
+        for record in records
+        if record.get("decision_latency_ms") is not None
+    ]
+    n_done = len(completed)
+    n_on_time = len(on_time)
+    metrics = {
+        "N_gen": n_gen,
+        "N_done": n_done,
+        "N_on_time": n_on_time,
+        "TCR": float(n_done / n_gen) if n_gen else 1.0,
+        "DVR": float((n_gen - n_on_time) / n_gen) if n_gen else 0.0,
+        "p95_task_latency": _percentile_or_none(latencies, 95),
+        "mean_latency": _mean_or_none(latencies),
+        "system_energy_per_completed_task": (
+            float(np.sum(system_energies) / n_done) if n_done else None
+        ),
+        "device_energy_per_completed_task": (
+            float(np.sum(device_energies) / n_done) if n_done else None
+        ),
+        "mean_decision_latency_ms": _mean_or_none(decision_latencies),
+        "p95_decision_latency_ms": _percentile_or_none(decision_latencies, 95),
+    }
+    if reward_steps is not None:
+        metrics["evaluation_reward"] = (
+            float(np.mean(reward_steps)) if reward_steps else 0.0
+        )
+    return metrics
+
+
+def _write_task_records_csv(path: Path, records: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    extra_fields = sorted(
+        {
+            key
+            for record in records
+            for key in record
+            if key not in C4_TASK_RECORD_FIELDS
+        }
+    )
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=C4_TASK_RECORD_FIELDS + extra_fields,
+            extrasaction="ignore",
+        )
+        writer.writeheader()
+        writer.writerows(records)
 
 
 def _finalize_run(
@@ -157,6 +358,7 @@ def _finalize_run(
         key: float(np.mean([episode[key] for episode in episodes]))
         for key in ("reward", "latency", "energy", "completion_rate")
     }
+    convergence = _convergence_metrics(episodes, manifest.get("config", {}))
     finite = all(math.isfinite(value) for value in metrics.values())
     result = {
         "status": "passed" if finite and episodes else "failed",
@@ -164,6 +366,7 @@ def _finalize_run(
         "episodes": len(episodes),
         "updates": len(losses),
         "metrics": metrics,
+        "convergence_metrics": convergence,
         "finite_metrics": finite,
         "extra": extra or {},
     }
@@ -178,6 +381,7 @@ def _finalize_run(
             "status": result["status"],
             "ended_at": datetime.now(timezone.utc).isoformat(),
             "summary": result,
+            "convergence_metrics": convergence,
         }
     )
     write_manifest(run_dir / "run_manifest.json", manifest)
@@ -460,6 +664,8 @@ def _run_maddpg_family(
                 latencies,
                 energies,
                 info.get("task_completion_stats", {}),
+                environment_steps=global_step,
+                episode_index=episode,
             )
         )
 
@@ -583,6 +789,7 @@ def _run_on_policy(
     max_steps = int(algorithm_cfg.get("max_steps", 10))
     episodes: list[dict[str, float]] = []
     losses: list[dict[str, float]] = []
+    global_step = 0
 
     for episode in range(episodes_count):
         global_state, _ = env.reset(seed=seed + episode)
@@ -593,6 +800,7 @@ def _run_on_policy(
         info: dict[str, Any] = {}
 
         for _ in range(max_steps):
+            global_step += 1
             policy_actions = []
             pending = []
             for index, agent in enumerate(agents):
@@ -671,6 +879,8 @@ def _run_on_policy(
                 latencies,
                 energies,
                 info.get("task_completion_stats", {}),
+                environment_steps=global_step,
+                episode_index=episode,
             )
         )
 
@@ -727,6 +937,7 @@ def _run_greedy_min_cost(
     )
 
     episodes: list[dict[str, float]] = []
+    global_step = 0
     for episode in range(episodes_count):
         _global_state, _ = env.reset(seed=seed + episode)
         reward_steps: list[float] = []
@@ -735,6 +946,7 @@ def _run_greedy_min_cost(
         info: dict[str, Any] = {}
 
         for _step in range(max_steps):
+            global_step += 1
             # GreedyMinCost now returns [N, 3+E] hybrid actions
             hybrid_actions = agent.compute_action(env)
             env_actions = codec.batch_policy_to_env_actions(hybrid_actions)
@@ -754,6 +966,8 @@ def _run_greedy_min_cost(
                 latencies,
                 energies,
                 info.get("task_completion_stats", {}),
+                environment_steps=global_step,
+                episode_index=episode,
             )
         )
 
@@ -878,6 +1092,7 @@ def _run_llm_only(
 
     episodes: list[dict[str, float]] = []
     last_expert_metadata: dict[str, Any] = {}
+    global_step = 0
     for scenario in scenarios:
         scenario_seed = scenario["seed"]
         max_steps = scenario["max_steps"]
@@ -889,6 +1104,7 @@ def _run_llm_only(
         info: dict[str, Any] = {}
 
         for step in range(max_steps):
+            global_step += 1
             if agent is not None:
                 state = build_ei_state_payload(env)
                 if any(task is not None for task in state["tasks"]):
@@ -936,6 +1152,8 @@ def _run_llm_only(
                 latencies,
                 energies,
                 info.get("task_completion_stats", {}),
+                environment_steps=global_step,
+                episode_index=len(episodes),
             )
         )
 
@@ -976,6 +1194,467 @@ def _run_llm_only(
                 else None
             ),
         },
+    )
+
+
+def _resolve_model_dir(path_value: str | Path | None) -> Path | None:
+    if not path_value:
+        return None
+    path = _resolve_project_path(path_value)
+    return path / "models" if (path / "models").is_dir() else path
+
+
+def _load_maddpg_eval_agents(
+    *,
+    algorithm: str,
+    config: dict[str, Any],
+    env: CloudEdgeDeviceEnv,
+    model_dir: Path | None,
+    allow_untrained: bool,
+) -> list[MADDPGAgent]:
+    codec = HybridActionCodec(env.num_edges)
+    base_cfg = copy.deepcopy(config.get("maddpg", {}))
+    algorithm_cfg = copy.deepcopy(base_cfg)
+    if algorithm == "legacy_maps":
+        algorithm_cfg.update(copy.deepcopy(config.get("legacy_maps", {})))
+    elif algorithm in ("maps_no_annealing", "maps"):
+        algorithm_cfg.update(copy.deepcopy(config.get("llm_maddpg", {})))
+        algorithm_cfg.update(copy.deepcopy(config.get(algorithm, {})))
+    agents = [
+        MADDPGAgent(
+            state_dim=env.get_agent_state_dim(),
+            action_dim=codec.action_dim,
+            num_agents=env.num_devices,
+            agent_idx=index,
+            num_edges=env.num_edges,
+            config=algorithm_cfg,
+        )
+        for index in range(env.num_devices)
+    ]
+    if model_dir is None:
+        if not allow_untrained:
+            raise ValueError(
+                f"evaluation.checkpoint_dir is required for {algorithm}"
+            )
+        return agents
+    for index, agent in enumerate(agents):
+        agent.load_model(model_dir / f"agent_{index}_final.pt")
+    return agents
+
+
+def _load_on_policy_eval_agents(
+    *,
+    algorithm: str,
+    config: dict[str, Any],
+    env: CloudEdgeDeviceEnv,
+    model_dir: Path | None,
+    allow_untrained: bool,
+):
+    codec = HybridActionCodec(env.num_edges)
+    agent_class = MAPPOAgent if algorithm == "mappo" else HAPPOAgent
+    agents = [
+        agent_class(
+            state_dim=env.get_agent_state_dim(),
+            action_dim=codec.action_dim,
+            global_state_dim=env.observation_space.shape[0],
+            agent_idx=index,
+            num_edges=env.num_edges,
+            config=copy.deepcopy(config.get(algorithm, {})),
+        )
+        for index in range(env.num_devices)
+    ]
+    if model_dir is None:
+        if not allow_untrained:
+            raise ValueError(
+                f"evaluation.checkpoint_dir is required for {algorithm}"
+            )
+        return agents
+    for index, agent in enumerate(agents):
+        checkpoint = torch.load(
+            model_dir / f"agent_{index}_final.pt",
+            map_location=agent.device,
+        )
+        agent.actor.load_state_dict(checkpoint["actor"])
+        agent.critic.load_state_dict(checkpoint["critic"])
+    return agents
+
+
+def _load_evaluation_scenarios(
+    config: dict[str, Any],
+    seed: int,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    evaluation_cfg = config.get("evaluation", {})
+    default_window_steps = int(
+        evaluation_cfg.get(
+            "window_steps",
+            config.get("testing", {}).get("max_steps", 10),
+        )
+    )
+    if default_window_steps <= 0:
+        raise ValueError("evaluation.window_steps must be positive")
+    scenario_bank_path = evaluation_cfg.get("scenario_bank")
+    if scenario_bank_path:
+        scenario_bank_path = _resolve_project_path(scenario_bank_path)
+        scenario_bank_bytes = scenario_bank_path.read_bytes()
+        scenario_bank = json.loads(scenario_bank_bytes.decode("utf-8"))
+        expected_environment = scenario_bank.get("environment_fingerprint")
+        actual_environment = ei_environment_fingerprint(config)
+        if expected_environment and actual_environment != expected_environment:
+            raise ValueError(
+                "evaluation scenario bank environment does not match config"
+            )
+        raw_scenarios = scenario_bank.get("scenarios")
+        if raw_scenarios is None:
+            raw_scenarios = [
+                {"seed": value, "max_steps": default_window_steps}
+                for value in scenario_bank.get("seeds", [])
+            ]
+        scenarios = [
+            {
+                "scenario_id": (
+                    f"{scenario_bank['scenario_bank_id']}-{index}"
+                ),
+                "seed": int(item["seed"]),
+                "window_steps": int(
+                    item.get("max_steps", default_window_steps)
+                ),
+            }
+            for index, item in enumerate(raw_scenarios)
+        ]
+        scenario_meta = {
+            "scenario_bank_id": scenario_bank["scenario_bank_id"],
+            "scenario_bank_path": str(scenario_bank_path),
+            "scenario_bank_sha256": hashlib.sha256(
+                scenario_bank_bytes
+            ).hexdigest(),
+            "scenario_bank_frozen": True,
+            "scenario_construction_seed": int(
+                scenario_bank.get("construction_seed", seed)
+            ),
+        }
+    else:
+        scenario_count = int(evaluation_cfg.get("num_scenarios", 1))
+        if scenario_count <= 0:
+            raise ValueError("evaluation.num_scenarios must be positive")
+        scenarios = [
+            {
+                "scenario_id": f"seed-{seed + index}",
+                "seed": seed + index,
+                "window_steps": default_window_steps,
+            }
+            for index in range(scenario_count)
+        ]
+        scenario_meta = {
+            "scenario_bank_id": None,
+            "scenario_bank_path": None,
+            "scenario_bank_sha256": None,
+            "scenario_bank_frozen": False,
+            "scenario_construction_seed": seed,
+        }
+    max_scenarios = evaluation_cfg.get("max_scenarios")
+    if max_scenarios is not None:
+        scenarios = scenarios[: int(max_scenarios)]
+    if not scenarios:
+        raise ValueError("evaluation has no scenarios")
+    if any(item["window_steps"] <= 0 for item in scenarios):
+        raise ValueError("evaluation scenario window_steps must be positive")
+    return scenarios, scenario_meta
+
+
+def run_evaluation(
+    algorithm: str,
+    config: dict[str, Any],
+    seed: int,
+    output_root: str | Path,
+    command: str | None = None,
+) -> dict[str, Any]:
+    if algorithm not in SUPPORTED_ALGORITHMS:
+        raise ValueError(
+            f"unsupported algorithm {algorithm!r}; choose from {SUPPORTED_ALGORITHMS}"
+        )
+    set_global_seed(seed)
+    output_root = Path(output_root)
+    if not output_root.is_absolute():
+        output_root = PROJECT_ROOT / output_root
+    output_root.mkdir(parents=True, exist_ok=True)
+    command = command or " ".join(sys.argv)
+    run_dir = _make_run_dir(output_root, f"{algorithm}_eval", seed)
+    manifest = build_manifest(PROJECT_ROOT, algorithm, seed, config, command)
+    manifest["phase"] = "formal_evaluation"
+    write_manifest(run_dir / "run_manifest.json", manifest)
+
+    evaluation_cfg = config.get("evaluation", {})
+    drain_horizon_steps = int(evaluation_cfg.get("drain_horizon_steps", 0))
+    if drain_horizon_steps < 0:
+        raise ValueError("evaluation.drain_horizon_steps must be non-negative")
+    allow_untrained = bool(evaluation_cfg.get("allow_untrained", False))
+    model_dir = _resolve_model_dir(evaluation_cfg.get("checkpoint_dir"))
+    scenarios, scenario_meta = _load_evaluation_scenarios(config, seed)
+
+    env = CloudEdgeDeviceEnv(config)
+    codec = HybridActionCodec(env.num_edges)
+    greedy_agent = None
+    llm_agent = None
+    llm_provider = None
+    learning_agents = None
+    last_expert_metadata: dict[str, Any] = {}
+
+    if algorithm == "greedy_min_cost":
+        reward_cfg = config.get("reward", {})
+        greedy_agent = GreedyMinCostAgent(
+            num_devices=env.num_devices,
+            num_edges=env.num_edges,
+            latency_weight=float(reward_cfg.get("latency_weight", 1.0)),
+            energy_weight=float(reward_cfg.get("energy_weight", 1.0)),
+        )
+    elif algorithm == "llm_only":
+        llm_provider = _make_maps_expert_provider(
+            config=config,
+            num_agents=env.num_devices,
+            num_edges=env.num_edges,
+        )
+        if isinstance(llm_provider, CachedExpertProvider):
+            llm_agent = LLMOnlyAgent(
+                cache=llm_provider.cache,
+                num_agents=env.num_devices,
+                num_edges=env.num_edges,
+                fallback_policy=llm_provider.fallback_policy,
+            )
+        else:
+            llm_agent = None
+    elif algorithm in ("maddpg", "legacy_maps", "maps", "maps_no_annealing"):
+        learning_agents = _load_maddpg_eval_agents(
+            algorithm=algorithm,
+            config=config,
+            env=env,
+            model_dir=model_dir,
+            allow_untrained=allow_untrained,
+        )
+    else:
+        learning_agents = _load_on_policy_eval_agents(
+            algorithm=algorithm,
+            config=config,
+            env=env,
+            model_dir=model_dir,
+            allow_untrained=allow_untrained,
+        )
+
+    require_full_cache_coverage = bool(
+        evaluation_cfg.get(
+            "require_full_cache_coverage",
+            config.get("llm_only", {}).get("require_full_cache_coverage", True),
+        )
+    )
+    scenario_metrics: list[dict[str, Any]] = []
+    all_records: list[dict[str, Any]] = []
+    all_reward_steps: list[float] = []
+    episodes: list[dict[str, float]] = []
+    global_step = 0
+
+    def select_env_actions(global_state):
+        nonlocal last_expert_metadata
+        if greedy_agent is not None:
+            hybrid_actions = greedy_agent.compute_action(env)
+            return codec.batch_policy_to_env_actions(hybrid_actions)
+        if algorithm == "llm_only":
+            if isinstance(llm_provider, CachedExpertProvider) and llm_agent is not None:
+                state = build_ei_state_payload(env)
+                if any(task is not None for task in state["tasks"]):
+                    state_hash = hash_state(state)
+                    if require_full_cache_coverage and not llm_provider.cache.has(
+                        state_hash
+                    ):
+                        raise RuntimeError(
+                            "formal LLM-only evaluation is not fully covered by "
+                            f"the expert cache: {state_hash}"
+                        )
+                    env_actions, expert_batch = llm_agent.select_env_actions(state)
+                else:
+                    expert_batch = llm_agent.provider.get_noop_actions(state)
+                    env_actions = llm_agent.policy_to_env_actions(
+                        expert_batch.policy_actions
+                    )
+                last_expert_metadata = expert_batch.metadata
+                return env_actions
+            expert_batch = llm_provider.get_actions(
+                len(scenario_metrics),
+                env.episode_step,
+            )
+            last_expert_metadata = expert_batch.metadata
+            return codec.batch_policy_to_env_actions(expert_batch.policy_actions)
+        if algorithm in ("maddpg", "legacy_maps", "maps", "maps_no_annealing"):
+            states = _local_states(env, global_state)
+            policy_actions = np.asarray(
+                [
+                    agent.select_action(states[index], add_noise=False)
+                    for index, agent in enumerate(learning_agents)
+                ],
+                dtype=np.float32,
+            )
+            return codec.batch_policy_to_env_actions(policy_actions)
+        policy_actions = []
+        for index, agent in enumerate(learning_agents):
+            state = env.extract_agent_state(global_state, index)
+            action, _action_info = agent.select_action(
+                state,
+                global_state,
+                deterministic=True,
+            )
+            policy_actions.append(action)
+        return codec.batch_policy_to_env_actions(
+            np.asarray(policy_actions, dtype=np.float32)
+        )
+
+    for scenario_index, scenario in enumerate(scenarios):
+        scenario_seed = int(scenario["seed"])
+        window_steps = int(scenario["window_steps"])
+        env.max_steps = window_steps + drain_horizon_steps
+        global_state, _ = env.reset(
+            seed=scenario_seed,
+            options={
+                "evaluation": True,
+                "scenario_id": scenario["scenario_id"],
+            },
+        )
+        reward_steps: list[float] = []
+        for step in range(window_steps):
+            if step == window_steps - 1:
+                env.set_task_arrivals_enabled(False)
+            started = time.perf_counter()
+            env_actions = select_env_actions(global_state)
+            decision_latency_ms = (time.perf_counter() - started) * 1000.0
+            global_state, rewards, terminated, truncated, info = env.step(
+                env_actions,
+                decision_latency_ms=decision_latency_ms,
+            )
+            global_step += 1
+            has_task = info.get("has_task_list", [True] * env.num_devices)
+            valid_rewards = [
+                float(reward)
+                for reward, present in zip(rewards, has_task)
+                if present
+            ]
+            reward_steps.append(
+                float(np.mean(valid_rewards))
+                if valid_rewards
+                else float(np.mean(rewards))
+            )
+            if terminated or truncated:
+                break
+
+        evaluation_end_time = float(env.global_time)
+        drain_end_time = evaluation_end_time + (
+            drain_horizon_steps * float(env.time_step_duration)
+        )
+        drain_steps_used = 0
+        for _drain_step in range(drain_horizon_steps):
+            if not env.has_pending_arrivals():
+                break
+            started = time.perf_counter()
+            env_actions = select_env_actions(global_state)
+            decision_latency_ms = (time.perf_counter() - started) * 1000.0
+            global_state, _rewards, terminated, truncated, _info = env.step(
+                env_actions,
+                decision_latency_ms=decision_latency_ms,
+            )
+            global_step += 1
+            drain_steps_used += 1
+            if terminated or truncated:
+                break
+
+        records = _finalize_c4_task_records(
+            env.get_task_records(),
+            evaluation_end_time=evaluation_end_time,
+            drain_end_time=drain_end_time,
+        )
+        metrics = _c4_metrics(records, reward_steps)
+        metrics.update(
+            {
+                "scenario_id": scenario["scenario_id"],
+                "scenario_index": scenario_index,
+                "seed": scenario_seed,
+                "window_steps": window_steps,
+                "drain_horizon_steps": drain_horizon_steps,
+                "drain_steps_used": drain_steps_used,
+                "evaluation_end_time": evaluation_end_time,
+                "drain_end_time": drain_end_time,
+            }
+        )
+        scenario_metrics.append(metrics)
+        all_records.extend(records)
+        all_reward_steps.extend(reward_steps)
+        episodes.append(
+            {
+                "episode": scenario_index,
+                "environment_steps": global_step,
+                "reward": float(metrics.get("evaluation_reward") or 0.0),
+                "latency": float(metrics.get("mean_latency") or 0.0),
+                "energy": float(
+                    metrics.get("system_energy_per_completed_task") or 0.0
+                ),
+                "completion_rate": float(metrics["TCR"]),
+            }
+        )
+
+    task_records_path = run_dir / "task_records.csv"
+    evaluation_metrics_path = run_dir / "evaluation_metrics.json"
+    _write_task_records_csv(task_records_path, all_records)
+    overall_metrics = _c4_metrics(all_records, all_reward_steps)
+    evaluation_payload = {
+        "schema_version": "c4-evaluation-v1",
+        "algorithm": algorithm,
+        "seed": seed,
+        "metrics": overall_metrics,
+        "scenarios": scenario_metrics,
+        "scenario_count": len(scenarios),
+        "task_records_path": str(task_records_path),
+        "drain_horizon_steps": drain_horizon_steps,
+        "artifacts": {
+            "task_records_csv": str(task_records_path),
+            "evaluation_metrics_json": str(evaluation_metrics_path),
+        },
+        **scenario_meta,
+    }
+    evaluation_metrics_path.write_text(
+        json.dumps(evaluation_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    extra = {
+        "formal_evaluation": True,
+        "evaluation_metrics": overall_metrics,
+        "evaluation_metrics_path": str(evaluation_metrics_path),
+        "task_records_path": str(task_records_path),
+        "task_record_count": len(all_records),
+        "drain_horizon_steps": drain_horizon_steps,
+        "exploration_enabled": False,
+        "llm_enabled": algorithm == "llm_only",
+        "online_api_calls": 0,
+        "maps_eval_uses_llm": False
+        if algorithm in ("maps", "maps_no_annealing")
+        else None,
+        "checkpoint_dir": str(model_dir) if model_dir else None,
+        "allow_untrained": allow_untrained,
+        "expert": last_expert_metadata,
+        **scenario_meta,
+    }
+    if isinstance(llm_provider, CachedExpertProvider):
+        extra["cache_runtime_stats"] = (
+            llm_agent.runtime_stats if llm_agent is not None else {}
+        )
+        extra["cache_stats"] = llm_provider.cache.stats()
+        extra["cache_coverage_complete"] = (
+            extra["cache_runtime_stats"].get("misses") == 0
+            if llm_agent is not None
+            else None
+        )
+
+    return _finalize_run(
+        run_dir,
+        manifest,
+        episodes,
+        losses=[],
+        extra=extra,
     )
 
 

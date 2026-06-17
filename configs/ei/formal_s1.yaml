@@ -170,3 +170,12 @@ testing:
   max_steps: 100
   save_results: true
   detailed_logging: true
+
+evaluation:
+  scenario_bank: "artifacts/ei/expert_scenario_bank.json"
+  window_steps: 100
+  drain_horizon_steps: 20
+  reward_threshold: null
+  threshold_patience: 5
+  require_full_cache_coverage: true
+  allow_untrained: false

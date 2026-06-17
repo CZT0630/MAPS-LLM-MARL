@@ -139,6 +139,12 @@ class CloudEdgeDeviceEnv(gym.Env):
         self.task_executions = defaultdict(list)  # 按节点分组的执行队列
         self.completed_tasks_history = []  # 已完成任务的历史记录
         self.global_time = 0.0  # 全局时间步
+        self.evaluation_mode = False
+        self.scenario_id = None
+        self.task_arrivals_enabled = True
+        self.drain_mode = False
+        self.task_records = []
+        self._task_record_index = {}
         
         # Episode控制
         self.episode_step = 0
@@ -229,6 +235,17 @@ class CloudEdgeDeviceEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         """重置环境"""
+        options = options or {}
+        self.evaluation_mode = bool(options.get('evaluation', False))
+        self.scenario_id = options.get(
+            'scenario_id',
+            f"seed-{seed}" if seed is not None else "default",
+        )
+        self.task_arrivals_enabled = True
+        self.drain_mode = False
+        self.task_records = []
+        self._task_record_index = {}
+
         if seed is not None:
             np.random.seed(seed)
             random.seed(seed)
@@ -307,6 +324,7 @@ class CloudEdgeDeviceEnv(gym.Env):
                     task = Task(task_data)
                     task.creation_step = self.episode_step
                     self.pending_task_queues[device_id].append(task)
+                    self._record_task_arrival(task)
                     generated_count += 1
             self.task_completion_stats['total_tasks_generated'] += generated_count
             self._refresh_current_tasks()
@@ -324,6 +342,7 @@ class CloudEdgeDeviceEnv(gym.Env):
                 task = Task(task_data)
                 task.creation_step = self.episode_step
                 self.current_tasks.append(task)
+                self._record_task_arrival(task)
                 self.task_completion_stats['total_tasks_generated'] += 1
             else:
                 self.current_tasks.append(None)
@@ -343,9 +362,98 @@ class CloudEdgeDeviceEnv(gym.Env):
                 self.pending_task_queues[device_id].pop(0)
         self._refresh_current_tasks()
 
+    def set_task_arrivals_enabled(self, enabled):
+        self.task_arrivals_enabled = bool(enabled)
+        self.drain_mode = not self.task_arrivals_enabled
+
+    def has_pending_arrivals(self):
+        return any(self.pending_task_queues)
+
+    def get_task_records(self):
+        return copy.deepcopy(self.task_records)
+
+    def _task_record_key(self, task):
+        return (
+            str(self.scenario_id),
+            str(task.task_id),
+            int(task.device_id),
+            float(task.arrival_time),
+        )
+
+    def _record_task_arrival(self, task):
+        key = self._task_record_key(task)
+        if key in self._task_record_index:
+            return
+        record = {
+            'task_id': str(task.task_id),
+            'scenario_id': str(self.scenario_id),
+            'ue_id': int(task.device_id),
+            'arrival_time': float(task.arrival_time),
+            'arrival_slot': int(task.arrival_slot),
+            'deadline': float(task.deadline),
+            'completion_time': None,
+            'latency': None,
+            'completed': False,
+            'completed_on_time': False,
+            'device_energy_j': 0.0,
+            'system_energy_j': 0.0,
+            'decision_latency_ms': 0.0,
+            'failure_reason': None,
+            'task_type': str(task.task_type),
+            'semantic_type': str(task.semantic_type),
+            'priority': int(task.priority),
+            'data_size_mb': float(task.task_data_size),
+            'cpu_cycles': float(task.task_workload),
+        }
+        self._task_record_index[key] = len(self.task_records)
+        self.task_records.append(record)
+
+    def _record_task_completion(
+        self,
+        task,
+        actual_latency,
+        *,
+        device_energy_j=0.0,
+        system_energy_j=0.0,
+        decision_latency_ms=0.0,
+    ):
+        self._record_task_arrival(task)
+        index = self._task_record_index[self._task_record_key(task)]
+        record = self.task_records[index]
+        latency = float(actual_latency)
+        completion_time = float(task.arrival_time) + latency
+        record.update(
+            {
+                'completion_time': completion_time,
+                'latency': latency,
+                'completed': True,
+                'completed_on_time': latency <= float(task.deadline),
+                'device_energy_j': float(device_energy_j),
+                'system_energy_j': float(system_energy_j),
+                'decision_latency_ms': float(decision_latency_ms or 0.0),
+                'failure_reason': None,
+            }
+        )
+
+    def _record_task_failure(self, task, reason):
+        self._record_task_arrival(task)
+        index = self._task_record_index[self._task_record_key(task)]
+        record = self.task_records[index]
+        record['failure_reason'] = str(reason)
+
+    def _decision_latency_for_device(self, decision_latency_ms, device_idx):
+        if decision_latency_ms is None:
+            return 0.0
+        if isinstance(decision_latency_ms, (list, tuple, np.ndarray)):
+            if device_idx < len(decision_latency_ms):
+                return float(decision_latency_ms[device_idx])
+            return 0.0
+        return float(decision_latency_ms)
+
     def _mark_pending_arrivals_failed(self):
         for device_id, queue in enumerate(self.pending_task_queues):
             for task in queue:
+                self._record_task_failure(task, 'episode_ended_before_admission')
                 self.task_completion_stats['tasks_failed'] += 1
                 self.task_completion_stats['timeout_reasons'].append(
                     {
@@ -358,7 +466,7 @@ class CloudEdgeDeviceEnv(gym.Env):
 
     # 删除：时间模式、突发事件、应用混合与系统负载相关生成逻辑
 
-    def step(self, actions, llm_actions=None):
+    def step(self, actions, llm_actions=None, decision_latency_ms=None):
         """
         环境步进
 
@@ -371,7 +479,11 @@ class CloudEdgeDeviceEnv(gym.Env):
         """
         # Phase 2 分支
         if self.physics_version >= 2:
-            return self._step_phase2(actions, llm_actions)
+            return self._step_phase2(
+                actions,
+                llm_actions,
+                decision_latency_ms=decision_latency_ms,
+            )
 
         # --- Phase 1 原有逻辑 ---
         if self.debug:
@@ -442,7 +554,14 @@ class CloudEdgeDeviceEnv(gym.Env):
                 action = actions
 
             # 执行卸载
-            reward, metrics = self._execute_offloading_decision(i, action)
+            reward, metrics = self._execute_offloading_decision(
+                i,
+                action,
+                decision_latency_ms=self._decision_latency_for_device(
+                    decision_latency_ms,
+                    i,
+                ),
+            )
             rewards[i] = reward
             
             # 记录 metrics 到列表
@@ -467,7 +586,12 @@ class CloudEdgeDeviceEnv(gym.Env):
 
         # 5. 如果还没结束，为下一步生成新任务
         if not (terminated or truncated):
-            self._generate_new_tasks()
+            if self.task_arrivals_enabled:
+                self._generate_new_tasks()
+            else:
+                self._refresh_current_tasks()
+        else:
+            self._mark_pending_arrivals_failed()
 
         # 6. 打印当前状态总结
         if self.debug:
@@ -493,7 +617,10 @@ class CloudEdgeDeviceEnv(gym.Env):
             # 新增：每个设备是否有任务的标志
             'has_task_list': has_task_list,
             'ue_wait_times': [ue.calculate_task_load() for ue in self.user_equipments],
-            'es_wait_times': [es.calculate_task_load() for es in self.edge_servers]
+            'es_wait_times': [es.calculate_task_load() for es in self.edge_servers],
+            'evaluation_mode': self.evaluation_mode,
+            'task_arrivals_enabled': self.task_arrivals_enabled,
+            'drain_mode': self.drain_mode,
         }
 
         return self._get_observation(), rewards, terminated, truncated, info
@@ -525,7 +652,7 @@ class CloudEdgeDeviceEnv(gym.Env):
     # Phase 2: step 实现
     # ------------------------------------------------------------------
 
-    def _step_phase2(self, actions, llm_actions=None):
+    def _step_phase2(self, actions, llm_actions=None, decision_latency_ms=None):
         """Phase 2 环境步进。
 
         特点：
@@ -576,12 +703,22 @@ class CloudEdgeDeviceEnv(gym.Env):
             self._enqueue_phase2_plan(device_idx, task, detail)
             latency = total_latencies[device_idx]
             system_energy = total_energies[device_idx]
+            device_energy = detail['user_energy']
             reward_energy = (
-                detail['user_energy']
+                device_energy
                 if self.reward_energy_scope == 'user'
                 else system_energy
             )
-            self._check_task_completion(task, latency)
+            self._check_task_completion(
+                task,
+                latency,
+                device_energy_j=device_energy,
+                system_energy_j=system_energy,
+                decision_latency_ms=self._decision_latency_for_device(
+                    decision_latency_ms,
+                    device_idx,
+                ),
+            )
             rewards[device_idx] = self._calculate_reward(
                 latency,
                 reward_energy,
@@ -619,7 +756,10 @@ class CloudEdgeDeviceEnv(gym.Env):
 
         # 5. 为下一步生成新任务
         if not (terminated or truncated):
-            self._generate_new_tasks()
+            if self.task_arrivals_enabled:
+                self._generate_new_tasks()
+            else:
+                self._refresh_current_tasks()
         else:
             self._mark_pending_arrivals_failed()
 
@@ -653,6 +793,9 @@ class CloudEdgeDeviceEnv(gym.Env):
                 len(queue) for queue in self.pending_task_queues
             ],
             'evaluation': evaluation,
+            'evaluation_mode': self.evaluation_mode,
+            'task_arrivals_enabled': self.task_arrivals_enabled,
+            'drain_mode': self.drain_mode,
         }
 
         return self._get_observation(), rewards, terminated, truncated, info
@@ -741,7 +884,12 @@ class CloudEdgeDeviceEnv(gym.Env):
                 branch['release_time'],
             )
 
-    def _execute_offloading_decision(self, device_idx, action):
+    def _execute_offloading_decision(
+        self,
+        device_idx,
+        action,
+        decision_latency_ms=0.0,
+    ):
         """执行单个设备的卸载决策 - 考虑差异化通信延迟"""
         # 🆕 检查是否有任务需要处理
         if self.current_tasks is None or device_idx >= len(self.current_tasks):
@@ -788,7 +936,12 @@ class CloudEdgeDeviceEnv(gym.Env):
         
         # 分割任务并分配到不同节点
         total_latency, total_energy, comm_latency, comp_latency = self._schedule_task_execution_optimized(
-            ue, task, edge_id, device_idx)
+            ue,
+            task,
+            edge_id,
+            device_idx,
+            decision_latency_ms=decision_latency_ms,
+        )
         
         # 计算本地基准
         baseline_latency, baseline_energy = self._calculate_local_baseline(ue, task)
@@ -807,7 +960,14 @@ class CloudEdgeDeviceEnv(gym.Env):
         
         return reward, metrics
 
-    def _schedule_task_execution_optimized(self, ue, task, edge_id, device_idx):
+    def _schedule_task_execution_optimized(
+        self,
+        ue,
+        task,
+        edge_id,
+        device_idx,
+        decision_latency_ms=0.0,
+    ):
         """
         优化的任务调度 - 考虑差异化通信延迟和任务负载
         
@@ -912,7 +1072,13 @@ class CloudEdgeDeviceEnv(gym.Env):
         total_comp_latency = max(comp_latencies)
         
         # 检查任务完成状态
-        self._check_task_completion(task, total_latency)
+        self._check_task_completion(
+            task,
+            total_latency,
+            device_energy_j=total_energy,
+            system_energy_j=total_energy,
+            decision_latency_ms=decision_latency_ms,
+        )
         
         return total_latency, total_energy, total_comm_latency, total_comp_latency
 
@@ -1303,7 +1469,15 @@ class CloudEdgeDeviceEnv(gym.Env):
         snapshot = capture_snapshot(self)
         return evaluate(snapshot, joint_action)
 
-    def _check_task_completion(self, task, actual_latency):
+    def _check_task_completion(
+        self,
+        task,
+        actual_latency,
+        *,
+        device_energy_j=0.0,
+        system_energy_j=0.0,
+        decision_latency_ms=0.0,
+    ):
         """
         检查并记录任务完成状态
         
@@ -1318,6 +1492,13 @@ class CloudEdgeDeviceEnv(gym.Env):
         # 记录任务完成时间
         completion_time = task.arrival_time + actual_latency
         self.task_completion_stats['completion_times'].append(completion_time)
+        self._record_task_completion(
+            task,
+            actual_latency,
+            device_energy_j=device_energy_j,
+            system_energy_j=system_energy_j,
+            decision_latency_ms=decision_latency_ms,
+        )
         
         # 检查是否超过截止时间
         if actual_latency <= task.deadline:

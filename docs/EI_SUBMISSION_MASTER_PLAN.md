@@ -104,8 +104,9 @@ EI 版本不重构为 Letter 路线，也不追求新的通用 LLM-RL 理论。�
   `0.8/0.15/0` 仍只作为 pilot 初值。
 - C3 的 prompt、联合状态哈希、严格 parser、可审计 cache、共享 provider、
   LLM-only runner、真实 MiMo cache 与配套冻结场景产物已完成。
-- 当前指标主要用于 smoke test，尚未完整输出 P95、DVR、TCR、AUC 和 threshold。
-- 当前训练与测试尚未使用冻结 scenario bank。
+- C4 的 drain horizon、逐任务记录、正式 evaluation artifact、P95/DVR/TCR、
+  decision latency、energy-per-completed-task 和 AUC/threshold summary 已完成。
+- 当前训练与测试的大规模 scenario bank 编排仍未完成，不能开始 EI 正式矩阵。
 
 ### 4.3 尚待完成
 
@@ -120,8 +121,8 @@ EI 版本不重构为 Letter 路线，也不追求新的通用 LLM-RL 理论。�
 | 真实 MiMo cache artifact | **done** | yes |
 | LLM-only evaluator 代码 | **done** | yes |
 | LLM-only 冻结场景评估证据 | **done** | yes |
-| Drain horizon 和逐任务记录 | pending | yes |
-| P95、DVR、TCR、AUC、threshold | pending | yes |
+| Drain horizon 和逐任务记录 | **done** | yes |
+| P95、DVR、TCR、AUC、threshold | **done** | yes |
 | 10/20/30/50 UE scenario bank | pending | yes |
 | 论文 LaTeX 独立工作区 | pending | yes |
 | 自动图表和统计脚本 | pending | yes |
@@ -483,6 +484,40 @@ Final reward = 最后 10% evaluation points 的均值
 - decision wall-clock 不混入仿真时延；
 - 正式评估关闭 exploration；
 - MAPS 正式评估关闭 LLM。
+
+**C4 完成记录（2026-06-17）：**
+
+已新增/修改文件：
+
+```text
+environment/cloud_edge_env.py       (新增 evaluation/drain 控制和逐任务 ledger)
+experiments/runner.py               (新增 run_evaluation 与 C4 metrics/artifacts)
+main.py                             (新增 --mode eval)
+configs/ei/formal_s1.yaml           (新增 evaluation 协议参数)
+tests/test_c4_evaluation.py         (新增 C4 协议测试)
+tests/test_ei_formal_config.py      (扩展正式配置检查)
+README.md                           (更新状态与 eval smoke 命令)
+```
+
+实现结果：
+
+- `env.reset(options={"evaluation": True, "scenario_id": ...})` 可开启评估语义。
+- runner 在 evaluation window 最后一个 step 停止新任务到达，然后执行固定
+  `drain_horizon_steps`。
+- 每个任务记录至少包含 `task_id`、`scenario_id`、`arrival_time`、`deadline`、
+  `completion_time`、`latency`、`completed`、`completed_on_time`、
+  `device_energy_j`、`system_energy_j` 和 `decision_latency_ms`。
+- `task_records.csv` 使用 C4 drain 语义重算 `completed`，drain horizon 后仍未完成的
+  任务计入 DVR。
+- `evaluation_metrics.json` 输出 `N_gen`、`N_done`、`N_on_time`、`TCR`、`DVR`、
+  `p95_task_latency`、`mean_latency`、system/device energy per completed task
+  以及 mean/P95 decision latency。
+- 训练 run summary 新增按 environment interactions 计算的 `reward_auc`、
+  `final_reward`、`steps_to_threshold` 和 threshold 状态。
+- `--mode eval` 默认关闭 exploration；学习型算法没有 `evaluation.checkpoint_dir`
+  时会拒绝正式评估，除非显式设置 `evaluation.allow_untrained=true`。
+- `MAPS` 与 `MAPS-w/o-Annealing` 的正式 eval 不使用 LLM；`LLM-only` 仍只使用
+  frozen cache，`online_api_calls=0`。
 
 ### C5：Scenario bank、配置和运行产物
 
@@ -953,7 +988,8 @@ loss、queue backlog、per-node utilization、device energy、expert similarity 
 
 当前最先执行的不是继续增加 baseline，也不是开始跑正式大实验，而是：
 
-> 完成 C4 正式指标、drain horizon、逐任务记录和 evaluation artifact。
+> 完成 C5 scenario bank、配置和正式 artifact pipeline。
 
-在 C4 完成前，现有 `legacy_maps`、Greedy smoke、Phase 2 smoke 和 C3 cache
-证据只能证明工程路径与专家证据链可运行，不能进入 EI 论文最终结果。
+在 C5 完成前，现有 `legacy_maps`、Greedy smoke、Phase 2 smoke、C3 cache 和
+C4 evaluation smoke 证据只能证明工程路径、专家证据链与评估协议可运行，
+不能进入 EI 论文最终结果。

@@ -22,10 +22,12 @@
 - **C3 已完成**：使用 MiMo-V2.5 生成 500-state state-keyed expert cache；
   parser success、valid action rate 均为 100%，fallback rate 为 0%；LLM-only
   在配套冻结 scenario bank 上验证通过，部署期 `online_api_calls=0` 且 cache miss 为 0。
+- **C4 已完成**：新增正式 evaluation 协议、drain horizon、逐任务记录、
+  P95/DVR/TCR/energy/decision-latency 指标和 convergence AUC/threshold summary。
 
 Phase 1 仅证明基线可运行、可复现，不代表论文方法或性能结论已经成立。Phase 2
-修复了环境物理模型，但尚未用于正式论文实验。C1-C3 已完成，当前下一步是 C4
-正式指标与评估协议。
+修复了环境物理模型，但尚未用于正式论文实验。C1-C4 已完成，当前下一步是 C5
+scenario bank、配置和正式 artifact pipeline。
 
 ## 快速开始
 
@@ -47,6 +49,15 @@ python main.py --mode audit `
   --seeds 42,43 `
   --output-root results/phase1 `
   --audit-path artifacts/phase1/baseline_audit.json
+
+# C4 evaluation smoke
+python main.py --mode eval `
+  --algorithm greedy_min_cost `
+  --config configs/smoke_phase2.yaml `
+  --episodes 1 `
+  --steps 2 `
+  --drain-steps 1 `
+  --output-root artifacts/ei/c4_eval_smoke
 
 # 测试
 python -m pytest
@@ -72,12 +83,13 @@ python -m LLM4RL.main --help
 - `environment/snapshot.py`：环境快照与纯函数式评估。
 - `experiments/runner.py`：统一训练和审计入口。
 - `fixtures/legacy_expert_cache.json`：仅用于工程验证的固定专家缓存。
-- `configs/ei/formal_s1.yaml`：C3 MiMo cache 生成和 LLM-only 冻结评估的正式 S1 配置。
+- `configs/ei/formal_s1.yaml`：C3 cache 和 C4 evaluation 的正式 S1 配置。
 - `llm_assistant/ei_prompt_builder.py`：EI-v1 prompt builder。
 - `llm_assistant/expert_cache.py`：state-keyed expert cache 与 audit trail。
 - `llm_assistant/cached_expert_provider.py`：cache hit / fallback provider。
 - `baselines/llm_only.py`：LLM-only evaluator baseline。
 - `scripts/generate_expert_cache.py`：从真实 API 生成 expert cache。
+- `tests/test_c4_evaluation.py`：C4 drain horizon、task records 和 evaluation artifact 测试。
 
 ## 投稿路线
 
@@ -85,8 +97,8 @@ python -m LLM4RL.main --help
 - `publication/ei-conference`：执行 `docs/EI_SUBMISSION_MASTER_PLAN.md`。
 
 该主文档是 EI 路线的唯一方案，统一定义代码修改顺序、baseline、场景、指标、
-图表和论文逐节修改要求。C1 混合动作 codec 与 C2 mixed distillation/退火已完成；
-C3 真实 MiMo cache、冻结场景评估和有效率证据已完成。
+图表和论文逐节修改要求。C1 混合动作 codec、C2 mixed distillation/退火、
+C3 真实 MiMo cache 和 C4 正式评估协议已完成。
 完成这些工作前，`legacy_maps` 只用于工程 smoke test，不能作为论文结果。
 
 MiMo API 的无密钥配置和本地验证方法见

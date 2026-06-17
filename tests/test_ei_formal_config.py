@@ -23,4 +23,10 @@ def test_formal_s1_config_is_phase2_state_keyed():
         config["llm_only"]["scenario_bank"]
         == "artifacts/ei/expert_scenario_bank.json"
     )
+    assert config["evaluation"]["scenario_bank"] == (
+        "artifacts/ei/expert_scenario_bank.json"
+    )
+    assert config["evaluation"]["drain_horizon_steps"] == 20
+    assert config["evaluation"]["require_full_cache_coverage"] is True
+    assert config["evaluation"]["allow_untrained"] is False
     assert len(ei_environment_fingerprint(config)) == 64
