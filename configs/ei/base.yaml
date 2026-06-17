@@ -1,0 +1,188 @@
+# EI base configuration shared by formal scenario banks and runs.
+
+model_version: 2
+seed: 42
+
+ei:
+  scenario_family: "ei"
+  scenario_name: "base"
+
+environment:
+  name: "ei_formal"
+  physics_version: 2
+  debug: false
+  num_devices: 10
+  num_edges: 5
+  num_clouds: 1
+  delta_t: 1.0
+  action_space:
+    type: "continuous"
+    dimension: 4
+
+device_specs:
+  user_equipment:
+    count: 10
+    cpu_frequency_range: [0.5, 0.8]
+    alpha_ue: 1e-10
+    transmission_power: 0.5
+    transmission_rate_to_edge: 1e8
+    transmission_rate_to_cloud: 1e9
+  edge_servers:
+    count: 5
+    cpu_frequencies: [5, 6, 7, 8, 9]
+    alpha_es: 3e-10
+    transmission_rate_to_cloud: 1e8
+  cloud_servers:
+    count: 1
+    cpu_frequency: 20
+    alpha_cs: 3e-10
+    parallel_factor: 8.0
+
+channel:
+  bandwidth_hz: 1e6
+  transmit_power_w: 0.5
+  noise_psd_w_hz: 1e-17
+  path_loss_exponent: 3.0
+  ref_distance_m: 1.0
+  ref_distance_gain_db: 0.0
+  default_distance_m: 100.0
+  downlink_transmit_power_w: 0.5
+  rate_normalization_bps: 100e6
+
+backhaul:
+  rate_bps: 1e9
+  energy_per_bit: 1e-9
+  propagation_latency_s: 0.002
+
+energy:
+  kappa_ue: 1e-28
+  kappa_es: 3e-28
+  kappa_cs: 3e-28
+
+tasks:
+  processing_density: 0.2e9
+  simple_mode: false
+  poisson_config:
+    base_arrival_rate: 0.5
+    time_pattern_enabled: false
+  output_ratio: 0.1
+  semantic_type_weights:
+    video_analytics: 0.25
+    ar_vr: 0.25
+    ai_inference: 0.25
+    control: 0.25
+  generator_verbose: false
+  fixed_deadline_seconds: null
+
+network:
+  ue_to_edge_rate: 1e8
+  ue_to_cloud_total_rate: 1e7
+  edge_to_cloud_rate: 1e8
+
+reward:
+  type: "normalized"
+  latency_weight: 0.5
+  energy_weight: 0.5
+  deadline_penalty: 1.0
+  energy_scope: "user"
+
+maddpg:
+  num_agents: 10
+  actor_hidden_dims: [128, 64]
+  critic_hidden_dims: [256, 128]
+  max_episodes: 300
+  max_steps: 100
+  train_frequency: 20
+  lr_actor: 0.0003
+  lr_critic: 0.0003
+  gamma: 0.99
+  tau: 0.005
+  buffer_size: 100000
+  batch_size: 256
+  noise_type: "ou"
+  noise_theta: 0.15
+  noise_sigma: 0.2
+  noise_decay: 0.995
+
+legacy_maps:
+  max_episodes: 20
+  max_steps: 10
+  train_frequency: 4
+  distill_weight: 0.2
+  expert_cache: "fixtures/legacy_expert_cache.json"
+
+llm_maddpg:
+  inherit_from: "maddpg"
+  max_episodes: 300
+  max_steps: 100
+  train_frequency: 20
+  eta_edge: 1.0
+  initial_llm_distill_weight: 0.8
+  constant_llm_distill_weight: 0.15
+  stage1_end_progress: 0.3
+  stage2_end_progress: 0.7
+  exploration_episodes: 150
+
+expert_cache:
+  format: "state_keyed"
+  path: "artifacts/ei/expert_cache.json"
+  fallback_policy: "all_local"
+
+llm_only:
+  max_episodes: 200
+  max_steps: 200
+  require_full_cache_coverage: true
+  scenario_bank: "artifacts/ei/expert_scenario_bank.json"
+
+mappo:
+  lr_actor: 0.0003
+  lr_critic: 0.001
+  gamma: 0.99
+  lam: 0.95
+  clip_range: 0.2
+  entropy_coeff: 0.01
+  value_coeff: 0.5
+  update_epochs: 4
+  batch_size: 64
+  max_episodes: 200
+  max_steps: 200
+
+happo:
+  lr_actor: 0.0003
+  lr_critic: 0.001
+  gamma: 0.99
+  lam: 0.95
+  clip_range: 0.2
+  kl_coeff: 0.5
+  entropy_coeff: 0.01
+  value_coeff: 0.5
+  update_epochs: 4
+  batch_size: 64
+  max_episodes: 200
+  max_steps: 200
+
+greedy_min_cost:
+  max_episodes: 100
+  max_steps: 100
+
+training:
+  episodes: 300
+  max_steps_per_episode: 100
+  save_frequency: 50
+  log_frequency: 10
+  warm_up_episodes: 0
+
+testing:
+  num_episodes: 100
+  max_steps: 100
+  save_results: true
+  detailed_logging: true
+
+evaluation:
+  scenario_bank: null
+  window_steps: 100
+  drain_horizon_steps: 20
+  reward_threshold: null
+  threshold_patience: 5
+  require_full_cache_coverage: true
+  allow_untrained: false

@@ -1,0 +1,16 @@
+ei:
+  method: "maps_no_annealing"
+
+llm_maddpg:
+  max_episodes: 300
+  max_steps: 100
+  train_frequency: 20
+  batch_size: 256
+  constant_llm_distill_weight: 0.15
+  exploration_episodes: 150
+
+maps_no_annealing:
+  max_episodes: 300
+  max_steps: 100
+  constant_llm_distill_weight: 0.15
+

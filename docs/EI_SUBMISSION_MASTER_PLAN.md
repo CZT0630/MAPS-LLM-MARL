@@ -123,7 +123,7 @@ EI 版本不重构为 Letter 路线，也不追求新的通用 LLM-RL 理论。�
 | LLM-only 冻结场景评估证据 | **done** | yes |
 | Drain horizon 和逐任务记录 | **done** | yes |
 | P95、DVR、TCR、AUC、threshold | **done** | yes |
-| 10/20/30/50 UE scenario bank | pending | yes |
+| 10/20/30/50 UE scenario bank | **done** | yes |
 | 论文 LaTeX 独立工作区 | pending | yes |
 | 自动图表和统计脚本 | pending | yes |
 
@@ -559,6 +559,54 @@ checkpoint
 
 所有图表从正式 artifact 自动生成，禁止手工填数字。
 
+**C5 完成记录（2026-06-17）：**
+
+已新增/修改文件：
+
+```text
+experiments/ei/scenario_bank.py       (新增: train/test scenario bank 生成)
+experiments/ei/config.py              (新增: EI 配置片段合成)
+experiments/ei/train.py               (新增: EI 训练入口)
+experiments/ei/evaluate.py            (新增: EI 评估入口)
+experiments/ei/analyze.py             (新增: evaluation artifact 汇总)
+experiments/runner.py                 (新增 resolved_config/artifact index 和 train bank)
+experiments/__init__.py               (修复 python -m experiments.ei.* 入口)
+configs/ei/base.yaml                  (新增: EI 正式配置基底)
+configs/ei/methods/*.yaml             (新增: 方法配置片段)
+configs/ei/scales/*.yaml              (新增: S1/S2 UE 规模片段)
+configs/ei/deadlines/*.yaml           (新增: S3 deadline 片段)
+tests/test_c5_pipeline.py             (新增: C5 pipeline 测试)
+```
+
+正式 scenario bank 产物：
+
+```text
+artifacts/ei/scenario_banks/s1_u10_medium_train.json
+artifacts/ei/scenario_banks/s1_u10_medium_test.json
+artifacts/ei/scenario_banks/s2_u20_medium_train.json
+artifacts/ei/scenario_banks/s2_u20_medium_test.json
+artifacts/ei/scenario_banks/s2_u30_medium_train.json
+artifacts/ei/scenario_banks/s2_u30_medium_test.json
+artifacts/ei/scenario_banks/s2_u50_medium_train.json
+artifacts/ei/scenario_banks/s2_u50_medium_test.json
+artifacts/ei/scenario_banks/s3_u10_loose_train.json
+artifacts/ei/scenario_banks/s3_u10_loose_test.json
+artifacts/ei/scenario_banks/s3_u10_strict_train.json
+artifacts/ei/scenario_banks/s3_u10_strict_test.json
+```
+
+实现结果：
+
+- train bank 与 test bank 使用不同 split 和不相交 seeds。
+- bank 保存 `scenario_bank_id`、`environment_fingerprint`、resolved config hash、
+  deterministic contract、scenario seed 和 max steps。
+- `experiments/runner.py` 在成功 run 中保存 `resolved_config.yaml`，并在 manifest
+  中写入 artifact index。
+- 学习型训练可通过 `training.scenario_bank` 使用冻结 train bank；评估通过
+  `evaluation.scenario_bank` 使用冻结 test bank。
+- `experiments.ei.train`、`experiments.ei.evaluate` 和 `experiments.ei.analyze`
+  将配置片段、scenario bank、运行产物和结果汇总串成正式 pipeline。
+
 ### C6：Pilot gate 与正式运行
 
 先运行：
@@ -988,8 +1036,8 @@ loss、queue backlog、per-node utilization、device energy、expert similarity 
 
 当前最先执行的不是继续增加 baseline，也不是开始跑正式大实验，而是：
 
-> 完成 C5 scenario bank、配置和正式 artifact pipeline。
+> 执行 C6 两 seed pilot gate。
 
-在 C5 完成前，现有 `legacy_maps`、Greedy smoke、Phase 2 smoke、C3 cache 和
-C4 evaluation smoke 证据只能证明工程路径、专家证据链与评估协议可运行，
-不能进入 EI 论文最终结果。
+在 C6 pilot 通过前，现有 `legacy_maps`、Greedy smoke、Phase 2 smoke、C3 cache、
+C4 evaluation smoke 和 C5 scenario bank 只能证明工程路径、专家证据链、评估协议
+与实验 pipeline 可运行，不能进入 EI 论文最终结果。

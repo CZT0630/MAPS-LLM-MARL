@@ -1,0 +1,8 @@
+ei:
+  method: "llm_only"
+
+llm_only:
+  max_episodes: 200
+  max_steps: 200
+  require_full_cache_coverage: true
+

@@ -1,0 +1,14 @@
+ei:
+  deadline_profile: "strict"
+
+tasks:
+  semantic_profiles:
+    video_analytics:
+      deadline_multiplier: 3.0
+    ar_vr:
+      deadline_multiplier: 1.4
+    ai_inference:
+      deadline_multiplier: 2.0
+    control:
+      deadline_multiplier: 1.0
+

@@ -1,0 +1,18 @@
+ei:
+  method: "maps"
+
+llm_maddpg:
+  max_episodes: 300
+  max_steps: 100
+  train_frequency: 20
+  batch_size: 256
+  initial_llm_distill_weight: 0.8
+  constant_llm_distill_weight: 0.15
+  stage1_end_progress: 0.3
+  stage2_end_progress: 0.7
+  exploration_episodes: 150
+
+maps:
+  max_episodes: 300
+  max_steps: 100
+

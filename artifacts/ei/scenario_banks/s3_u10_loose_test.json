@@ -1,0 +1,119 @@
+{
+  "construction_seed": 42,
+  "created_at": "2026-06-17T08:22:46.782130+00:00",
+  "description": "",
+  "determinism_contract": {
+    "deadline_distribution": "shared through resolved config",
+    "initial_queues": "reset by scenario seed before each run",
+    "task_arrivals_and_attributes": "regenerated from scenario seed and resolved config",
+    "ue_es_distances_and_channel": "shared through resolved config and scenario seed"
+  },
+  "environment_fingerprint": "396d19b552e935d8adef8c32200cd9d142f9f0c31e3c47a80b1534e7627e5885",
+  "resolved_config_hash": "8495f58961654e1526d1506717ea4fbde2fabcc9b75ab701d11f304308f8b7dd",
+  "scenario_bank_id": "ei-s3_u10_loose-test-9a3fda0450eea01c",
+  "scenario_id": "s3_u10_loose",
+  "scenarios": [
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0000",
+      "seed": 2000
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0001",
+      "seed": 2001
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0002",
+      "seed": 2002
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0003",
+      "seed": 2003
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0004",
+      "seed": 2004
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0005",
+      "seed": 2005
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0006",
+      "seed": 2006
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0007",
+      "seed": 2007
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0008",
+      "seed": 2008
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0009",
+      "seed": 2009
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0010",
+      "seed": 2010
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0011",
+      "seed": 2011
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0012",
+      "seed": 2012
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0013",
+      "seed": 2013
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0014",
+      "seed": 2014
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0015",
+      "seed": 2015
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0016",
+      "seed": 2016
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0017",
+      "seed": 2017
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0018",
+      "seed": 2018
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s3_u10_loose-test-0019",
+      "seed": 2019
+    }
+  ],
+  "schema_version": "ei-scenario-bank-v1",
+  "split": "test"
+}

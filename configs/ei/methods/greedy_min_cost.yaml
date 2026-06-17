@@ -1,0 +1,7 @@
+ei:
+  method: "greedy_min_cost"
+
+greedy_min_cost:
+  max_episodes: 100
+  max_steps: 100
+

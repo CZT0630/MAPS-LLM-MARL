@@ -15,6 +15,7 @@ from typing import Any
 
 import numpy as np
 import torch
+import yaml
 
 from LLM4RL.algos.common.annealing import AnnealingSchedule, FixedSchedule
 from LLM4RL.algos.common.hybrid_action import HybridActionCodec
@@ -34,7 +35,11 @@ from LLM4RL.llm_assistant.ei_state import (
 )
 from LLM4RL.llm_assistant.expert_cache import ExpertCache, hash_state
 from LLM4RL.llm_assistant.expert_provider import FixedCacheExpertProvider
-from LLM4RL.utils.run_manifest import build_manifest, write_manifest
+from LLM4RL.utils.run_manifest import (
+    build_manifest,
+    sanitize_config,
+    write_manifest,
+)
 from LLM4RL.utils.seed import set_global_seed
 
 
@@ -65,6 +70,36 @@ def _make_run_dir(output_root: Path, algorithm: str, seed: int) -> Path:
     return run_dir
 
 
+def _write_resolved_config(run_dir: Path, config: dict[str, Any]) -> str:
+    path = run_dir / "resolved_config.yaml"
+    path.write_text(
+        yaml.safe_dump(
+            sanitize_config(config),
+            allow_unicode=True,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    return str(path)
+
+
+def _artifact_index(run_dir: Path) -> dict[str, Any]:
+    artifacts: dict[str, Any] = {
+        "run_manifest": str(run_dir / "run_manifest.json"),
+        "resolved_config": str(run_dir / "resolved_config.yaml"),
+        "episode_metrics": str(run_dir / "episode_metrics.json"),
+        "training_losses": str(run_dir / "training_losses.json"),
+    }
+    if (run_dir / "evaluation_metrics.json").exists():
+        artifacts["evaluation_metrics"] = str(run_dir / "evaluation_metrics.json")
+    if (run_dir / "task_records.csv").exists():
+        artifacts["task_records_csv"] = str(run_dir / "task_records.csv")
+    model_paths = sorted((run_dir / "models").glob("*_final.pt"))
+    if model_paths:
+        artifacts["checkpoints"] = [str(path) for path in model_paths]
+    return artifacts
+
+
 def _local_states(env: CloudEdgeDeviceEnv, global_state) -> np.ndarray:
     return np.asarray(
         [env.extract_agent_state(global_state, i) for i in range(env.num_devices)],
@@ -75,6 +110,88 @@ def _local_states(env: CloudEdgeDeviceEnv, global_state) -> np.ndarray:
 def _resolve_project_path(path_value: str | Path) -> Path:
     path = Path(path_value)
     return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def _scenario_bank_scenarios(
+    *,
+    bank_path: Path,
+    default_steps: int,
+    config: dict[str, Any],
+    split: str,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    bank_bytes = bank_path.read_bytes()
+    bank = json.loads(bank_bytes.decode("utf-8"))
+    expected_environment = bank.get("environment_fingerprint")
+    actual_environment = ei_environment_fingerprint(config)
+    if expected_environment and actual_environment != expected_environment:
+        raise ValueError(f"{split} scenario bank environment does not match config")
+    raw_scenarios = bank.get("scenarios")
+    if raw_scenarios is None:
+        raw_scenarios = [
+            {"seed": value, "max_steps": default_steps}
+            for value in bank.get("seeds", [])
+        ]
+    scenarios = [
+        {
+            "scenario_id": item.get(
+                "scenario_id",
+                f"{bank['scenario_bank_id']}-{index}",
+            ),
+            "seed": int(item["seed"]),
+            "max_steps": int(
+                item.get("max_steps", item.get("window_steps", default_steps))
+            ),
+        }
+        for index, item in enumerate(raw_scenarios)
+    ]
+    if not scenarios:
+        raise ValueError(f"{split} scenario bank has no scenarios")
+    if any(item["max_steps"] <= 0 for item in scenarios):
+        raise ValueError(f"{split} scenario max_steps must be positive")
+    metadata = {
+        f"{split}_scenario_bank_id": bank["scenario_bank_id"],
+        f"{split}_scenario_bank_path": str(bank_path),
+        f"{split}_scenario_bank_sha256": hashlib.sha256(bank_bytes).hexdigest(),
+        f"{split}_scenario_bank_frozen": True,
+        f"{split}_scenario_count": len(scenarios),
+        f"{split}_scenario_construction_seed": int(
+            bank.get("construction_seed", scenarios[0]["seed"])
+        ),
+    }
+    return scenarios, metadata
+
+
+def _training_scenarios(
+    config: dict[str, Any],
+    seed: int,
+    default_episodes: int,
+    default_steps: int,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    training_cfg = config.get("training", {})
+    bank_value = training_cfg.get("scenario_bank")
+    if bank_value:
+        return _scenario_bank_scenarios(
+            bank_path=_resolve_project_path(bank_value),
+            default_steps=default_steps,
+            config=config,
+            split="training",
+        )
+    scenarios = [
+        {
+            "scenario_id": f"train-seed-{seed + episode}",
+            "seed": seed + episode,
+            "max_steps": default_steps,
+        }
+        for episode in range(default_episodes)
+    ]
+    return scenarios, {
+        "training_scenario_bank_id": None,
+        "training_scenario_bank_path": None,
+        "training_scenario_bank_sha256": None,
+        "training_scenario_bank_frozen": False,
+        "training_scenario_count": len(scenarios),
+        "training_scenario_construction_seed": seed,
+    }
 
 
 def _make_maps_expert_provider(
@@ -354,6 +471,10 @@ def _finalize_run(
     losses: list[dict[str, float]],
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    resolved_config_path = _write_resolved_config(
+        run_dir,
+        manifest.get("config", {}),
+    )
     metrics = {
         key: float(np.mean([episode[key] for episode in episodes]))
         for key in ("reward", "latency", "energy", "completion_rate")
@@ -370,11 +491,18 @@ def _finalize_run(
         "finite_metrics": finite,
         "extra": extra or {},
     }
+    result["artifacts"] = _artifact_index(run_dir)
+    result["artifacts"]["resolved_config"] = resolved_config_path
     (run_dir / "episode_metrics.json").write_text(
         json.dumps(episodes, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     (run_dir / "training_losses.json").write_text(
         json.dumps(losses, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    extra_payload = extra or {}
+    scenario_bank_id = (
+        extra_payload.get("scenario_bank_id")
+        or extra_payload.get("training_scenario_bank_id")
     )
     manifest.update(
         {
@@ -382,8 +510,11 @@ def _finalize_run(
             "ended_at": datetime.now(timezone.utc).isoformat(),
             "summary": result,
             "convergence_metrics": convergence,
+            "artifacts": result["artifacts"],
         }
     )
+    if scenario_bank_id:
+        manifest["scenario_bank_id"] = scenario_bank_id
     write_manifest(run_dir / "run_manifest.json", manifest)
     return result
 
@@ -507,10 +638,17 @@ def _run_maddpg_family(
         )
     )
     max_steps = int(algorithm_cfg.get("max_steps", 10))
-    env.max_steps = max_steps
+    scenarios, training_scenario_metadata = _training_scenarios(
+        config,
+        seed,
+        episodes_count,
+        max_steps,
+    )
+    env.max_steps = max(item["max_steps"] for item in scenarios)
     train_frequency = int(algorithm_cfg.get("train_frequency", 1))
     batch_size = int(algorithm_cfg.get("batch_size", 64))
-    total_train_steps = max(1, episodes_count * max_steps)
+    episodes_count = len(scenarios)
+    total_train_steps = max(1, sum(item["max_steps"] for item in scenarios))
     exploration_episodes = int(
         algorithm_cfg.get(
             "exploration_episodes",
@@ -524,8 +662,13 @@ def _run_maddpg_family(
     losses: list[dict[str, float]] = []
     global_step = 0
 
-    for episode in range(episodes_count):
-        global_state, _ = env.reset(seed=seed + episode)
+    for episode, scenario in enumerate(scenarios):
+        scenario_steps = int(scenario["max_steps"])
+        env.max_steps = scenario_steps
+        global_state, _ = env.reset(
+            seed=int(scenario["seed"]),
+            options={"scenario_id": scenario["scenario_id"]},
+        )
         for agent in agents:
             agent.reset_noise()
         reward_steps: list[float] = []
@@ -533,7 +676,7 @@ def _run_maddpg_family(
         energies: list[float] = []
         info: dict[str, Any] = {}
 
-        for step in range(max_steps):
+        for step in range(scenario_steps):
             global_step += 1
             states = _local_states(env, global_state)
             # Policy actions are probabilities [3+E] per agent
@@ -720,6 +863,7 @@ def _run_maddpg_family(
         "final_progress": final_progress,
         "final_lambda": final_lambda,
         "loss_scale": loss_scale,
+        "training_scenarios": training_scenario_metadata,
     }
     manifest["distillation"] = distillation_metadata
     for index, agent in enumerate(agents):
@@ -749,6 +893,7 @@ def _run_maddpg_family(
                 type(schedule).__name__ if schedule is not None else None
             ),
             "distillation": distillation_metadata,
+            **training_scenario_metadata,
         },
     )
 
@@ -785,21 +930,32 @@ def _run_on_policy(
         )
         for index in range(num_agents)
     ]
-    episodes_count = int(algorithm_cfg.get("max_episodes", 20))
-    max_steps = int(algorithm_cfg.get("max_steps", 10))
+    default_episodes = int(algorithm_cfg.get("max_episodes", 20))
+    default_steps = int(algorithm_cfg.get("max_steps", 10))
+    scenarios, training_scenario_metadata = _training_scenarios(
+        config,
+        seed,
+        default_episodes,
+        default_steps,
+    )
     episodes: list[dict[str, float]] = []
     losses: list[dict[str, float]] = []
     global_step = 0
 
-    for episode in range(episodes_count):
-        global_state, _ = env.reset(seed=seed + episode)
+    for episode, scenario in enumerate(scenarios):
+        scenario_steps = int(scenario["max_steps"])
+        env.max_steps = scenario_steps
+        global_state, _ = env.reset(
+            seed=int(scenario["seed"]),
+            options={"scenario_id": scenario["scenario_id"]},
+        )
         buffer = TrajectoryBuffer(num_agents)
         reward_steps: list[float] = []
         latencies: list[float] = []
         energies: list[float] = []
         info: dict[str, Any] = {}
 
-        for _ in range(max_steps):
+        for _ in range(scenario_steps):
             global_step += 1
             policy_actions = []
             pending = []
@@ -901,6 +1057,7 @@ def _run_on_policy(
             "hybrid_action": True,
             "num_edges": num_edges,
             "action_dim": action_dim,
+            **training_scenario_metadata,
         },
     )
 

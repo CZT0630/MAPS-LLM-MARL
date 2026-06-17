@@ -1,0 +1,9 @@
+ei:
+  method: "maddpg"
+
+maddpg:
+  max_episodes: 300
+  max_steps: 100
+  train_frequency: 20
+  batch_size: 256
+

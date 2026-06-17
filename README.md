@@ -24,10 +24,12 @@
   在配套冻结 scenario bank 上验证通过，部署期 `online_api_calls=0` 且 cache miss 为 0。
 - **C4 已完成**：新增正式 evaluation 协议、drain horizon、逐任务记录、
   P95/DVR/TCR/energy/decision-latency 指标和 convergence AUC/threshold summary。
+- **C5 已完成**：新增 EI scenario bank 生成、配置片段合成、train/evaluate/analyze
+  入口和正式 artifact pipeline；已冻结 S1/S2/S3 train/test banks。
 
 Phase 1 仅证明基线可运行、可复现，不代表论文方法或性能结论已经成立。Phase 2
-修复了环境物理模型，但尚未用于正式论文实验。C1-C4 已完成，当前下一步是 C5
-scenario bank、配置和正式 artifact pipeline。
+修复了环境物理模型，但尚未用于正式论文实验。C1-C5 已完成，当前下一步是 C6
+两 seed pilot gate。
 
 ## 快速开始
 
@@ -59,6 +61,14 @@ python main.py --mode eval `
   --drain-steps 1 `
   --output-root artifacts/ei/c4_eval_smoke
 
+# C5 EI scenario bank generation
+python -m experiments.ei.scenario_bank `
+  --base-config configs/ei/base.yaml `
+  --fragment configs/ei/scales/s1_u10.yaml `
+  --fragment configs/ei/deadlines/medium.yaml `
+  --scenario-id s1_u10_medium `
+  --output-dir artifacts/ei/scenario_banks
+
 # 测试
 python -m pytest
 ```
@@ -82,14 +92,24 @@ python -m LLM4RL.main --help
 - `environment/backhaul_model.py`：有线回传链路模型。
 - `environment/snapshot.py`：环境快照与纯函数式评估。
 - `experiments/runner.py`：统一训练和审计入口。
+- `experiments/ei/scenario_bank.py`：生成分离的 EI train/test scenario banks。
+- `experiments/ei/train.py`：EI 配置片段 + train bank 训练入口。
+- `experiments/ei/evaluate.py`：EI 配置片段 + test bank 评估入口。
+- `experiments/ei/analyze.py`：汇总 `evaluation_metrics.json` 与 `task_records.csv`。
 - `fixtures/legacy_expert_cache.json`：仅用于工程验证的固定专家缓存。
+- `configs/ei/base.yaml`：EI 正式配置基底。
+- `configs/ei/methods/`：正文方法配置片段。
+- `configs/ei/scales/`：S1/S2 UE 规模配置片段。
+- `configs/ei/deadlines/`：S3 deadline sensitivity 配置片段。
 - `configs/ei/formal_s1.yaml`：C3 cache 和 C4 evaluation 的正式 S1 配置。
+- `artifacts/ei/scenario_banks/`：C5 冻结 train/test scenario bank 产物。
 - `llm_assistant/ei_prompt_builder.py`：EI-v1 prompt builder。
 - `llm_assistant/expert_cache.py`：state-keyed expert cache 与 audit trail。
 - `llm_assistant/cached_expert_provider.py`：cache hit / fallback provider。
 - `baselines/llm_only.py`：LLM-only evaluator baseline。
 - `scripts/generate_expert_cache.py`：从真实 API 生成 expert cache。
 - `tests/test_c4_evaluation.py`：C4 drain horizon、task records 和 evaluation artifact 测试。
+- `tests/test_c5_pipeline.py`：C5 scenario bank、配置合成和 artifact pipeline 测试。
 
 ## 投稿路线
 
@@ -98,7 +118,7 @@ python -m LLM4RL.main --help
 
 该主文档是 EI 路线的唯一方案，统一定义代码修改顺序、baseline、场景、指标、
 图表和论文逐节修改要求。C1 混合动作 codec、C2 mixed distillation/退火、
-C3 真实 MiMo cache 和 C4 正式评估协议已完成。
+C3 真实 MiMo cache、C4 正式评估协议和 C5 正式实验 pipeline 已完成。
 完成这些工作前，`legacy_maps` 只用于工程 smoke test，不能作为论文结果。
 
 MiMo API 的无密钥配置和本地验证方法见

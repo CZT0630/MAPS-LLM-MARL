@@ -1,0 +1,44 @@
+{
+  "construction_seed": 42,
+  "created_at": "2026-06-17T08:22:38.631833+00:00",
+  "description": "",
+  "determinism_contract": {
+    "deadline_distribution": "shared through resolved config",
+    "initial_queues": "reset by scenario seed before each run",
+    "task_arrivals_and_attributes": "regenerated from scenario seed and resolved config",
+    "ue_es_distances_and_channel": "shared through resolved config and scenario seed"
+  },
+  "environment_fingerprint": "ed1aeea2c10a26f5bf548af34ddd5a819510cb52d6f13627858565affb8dddbc",
+  "resolved_config_hash": "d4f829a4a8adb8c99f12d5f89a9d12b4500da4aaddf41a461ecffa4d90023d8b",
+  "scenario_bank_id": "ei-s2_u20_medium-train-d92ecf7209b9b3a5",
+  "scenario_id": "s2_u20_medium",
+  "scenarios": [
+    {
+      "max_steps": 100,
+      "scenario_id": "s2_u20_medium-train-0000",
+      "seed": 1000
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s2_u20_medium-train-0001",
+      "seed": 1001
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s2_u20_medium-train-0002",
+      "seed": 1002
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s2_u20_medium-train-0003",
+      "seed": 1003
+    },
+    {
+      "max_steps": 100,
+      "scenario_id": "s2_u20_medium-train-0004",
+      "seed": 1004
+    }
+  ],
+  "schema_version": "ei-scenario-bank-v1",
+  "split": "train"
+}

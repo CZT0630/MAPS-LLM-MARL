@@ -1,0 +1,21 @@
+ei:
+  scenario_name: "s2_u30"
+
+environment:
+  name: "ei_s2_u30"
+  num_devices: 30
+  num_edges: 5
+  num_clouds: 1
+
+device_specs:
+  user_equipment:
+    count: 30
+  edge_servers:
+    count: 5
+    cpu_frequencies: [5, 6, 7, 8, 9]
+  cloud_servers:
+    count: 1
+
+maddpg:
+  num_agents: 30
+
