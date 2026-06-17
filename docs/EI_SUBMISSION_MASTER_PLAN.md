@@ -631,6 +631,29 @@ short environment-step budget
 扩大实验矩阵。若 DVR 退化为全 0/1，调整 workload/deadline 分布并重新冻结场景，
 不能在画图阶段筛选结果。
 
+**C6 实现记录（2026-06-17）：**
+
+已新增/修改文件：
+
+```text
+experiments/ei/pilot_gate.py          (新增: C6 pilot gate 编排与报告)
+configs/ei/pilot.yaml                 (新增: 短 pilot 默认配置和门禁阈值)
+tests/test_c6_pilot_gate.py           (新增: pilot bank 与 gate 判据测试)
+README.md                             (更新: C6 runner 入口和项目状态)
+```
+
+实现结果：
+
+- `experiments.ei.pilot_gate` 会生成 C6 专用短冻结 train/test banks，并保持
+  train/test scenario seeds 不相交。
+- 默认执行 `maddpg`、`mappo`、`maps_no_annealing` 和 `maps`，每个方法使用
+  seeds `42,43`。
+- pilot 训练后立即用对应 checkpoint 运行正式 evaluation，部署期报告
+  `online_api_calls=0`，并检查 MAPS evaluation 不调用 LLM。
+- `pilot_gate.json` 汇总每个 seed 的训练/评估结果、expert cache 离线质量、
+  runtime cache coverage、AUC、DVR/TCR 和 fixed/annealed 差异。
+- `gate_passed` 只表示当前报告通过门禁；runner 实现完成不等于正式 pilot 已通过。
+
 ## 7. 最终实验方案
 
 ### 7.1 场景
@@ -993,8 +1016,8 @@ loss、queue backlog、per-node utilization、device energy、expert similarity 
 3. 完成 C3 真实 expert cache 与 LLM-only。
 4. 完成 C4 指标、drain horizon 和正式 evaluation。
 5. 完成 C5 scenario bank、配置与 artifact pipeline。
-6. 执行 C6 两 seed pilot。
-7. Pilot 通过后运行 5-seed 正式矩阵。
+6. 运行并检查 C6 两 seed pilot gate 报告。
+7. Pilot gate 报告通过后运行 5-seed 正式矩阵。
 8. 自动生成图表与统计表。
 9. 建立 `paper/ei/`，按第 8 节重写论文。
 10. 做符号、单位、引用、claim 和匿名化审计。
@@ -1036,8 +1059,9 @@ loss、queue backlog、per-node utilization、device energy、expert similarity 
 
 当前最先执行的不是继续增加 baseline，也不是开始跑正式大实验，而是：
 
-> 执行 C6 两 seed pilot gate。
+> 运行并检查 C6 两 seed pilot gate 报告。
 
 在 C6 pilot 通过前，现有 `legacy_maps`、Greedy smoke、Phase 2 smoke、C3 cache、
 C4 evaluation smoke 和 C5 scenario bank 只能证明工程路径、专家证据链、评估协议
-与实验 pipeline 可运行，不能进入 EI 论文最终结果。
+与实验 pipeline 可运行；C6 runner 只能证明 pilot gate 可执行，不能替代
+`pilot_gate.json` 的通过结论。

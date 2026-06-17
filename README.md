@@ -26,10 +26,12 @@
   P95/DVR/TCR/energy/decision-latency 指标和 convergence AUC/threshold summary。
 - **C5 已完成**：新增 EI scenario bank 生成、配置片段合成、train/evaluate/analyze
   入口和正式 artifact pipeline；已冻结 S1/S2/S3 train/test banks。
+- **C6 runner 已实现**：新增两 seed pilot gate 编排，生成短冻结 bank，串联训练/评估，
+  并输出 `pilot_gate.json` 门禁报告；正式 pilot 是否通过以报告中的 checks 为准。
 
 Phase 1 仅证明基线可运行、可复现，不代表论文方法或性能结论已经成立。Phase 2
-修复了环境物理模型，但尚未用于正式论文实验。C1-C5 已完成，当前下一步是 C6
-两 seed pilot gate。
+修复了环境物理模型，但尚未用于正式论文实验。C1-C6 代码路径已实现，当前下一步是运行
+并检查 C6 两 seed pilot gate 报告。
 
 ## 快速开始
 
@@ -69,6 +71,10 @@ python -m experiments.ei.scenario_bank `
   --scenario-id s1_u10_medium `
   --output-dir artifacts/ei/scenario_banks
 
+# C6 two-seed pilot gate
+python -m experiments.ei.pilot_gate `
+  --output-root artifacts/ei/pilot_gate
+
 # 测试
 python -m pytest
 ```
@@ -96,12 +102,14 @@ python -m LLM4RL.main --help
 - `experiments/ei/train.py`：EI 配置片段 + train bank 训练入口。
 - `experiments/ei/evaluate.py`：EI 配置片段 + test bank 评估入口。
 - `experiments/ei/analyze.py`：汇总 `evaluation_metrics.json` 与 `task_records.csv`。
+- `experiments/ei/pilot_gate.py`：C6 两 seed pilot gate 编排与门禁报告入口。
 - `fixtures/legacy_expert_cache.json`：仅用于工程验证的固定专家缓存。
 - `configs/ei/base.yaml`：EI 正式配置基底。
 - `configs/ei/methods/`：正文方法配置片段。
 - `configs/ei/scales/`：S1/S2 UE 规模配置片段。
 - `configs/ei/deadlines/`：S3 deadline sensitivity 配置片段。
 - `configs/ei/formal_s1.yaml`：C3 cache 和 C4 evaluation 的正式 S1 配置。
+- `configs/ei/pilot.yaml`：C6 短 pilot gate 默认配置与阈值。
 - `artifacts/ei/scenario_banks/`：C5 冻结 train/test scenario bank 产物。
 - `llm_assistant/ei_prompt_builder.py`：EI-v1 prompt builder。
 - `llm_assistant/expert_cache.py`：state-keyed expert cache 与 audit trail。
@@ -110,6 +118,7 @@ python -m LLM4RL.main --help
 - `scripts/generate_expert_cache.py`：从真实 API 生成 expert cache。
 - `tests/test_c4_evaluation.py`：C4 drain horizon、task records 和 evaluation artifact 测试。
 - `tests/test_c5_pipeline.py`：C5 scenario bank、配置合成和 artifact pipeline 测试。
+- `tests/test_c6_pilot_gate.py`：C6 pilot bank 与 gate 判据测试。
 
 ## 投稿路线
 
@@ -118,7 +127,8 @@ python -m LLM4RL.main --help
 
 该主文档是 EI 路线的唯一方案，统一定义代码修改顺序、baseline、场景、指标、
 图表和论文逐节修改要求。C1 混合动作 codec、C2 mixed distillation/退火、
-C3 真实 MiMo cache、C4 正式评估协议和 C5 正式实验 pipeline 已完成。
+C3 真实 MiMo cache、C4 正式评估协议、C5 正式实验 pipeline 和 C6 pilot gate runner
+已完成。
 完成这些工作前，`legacy_maps` 只用于工程 smoke test，不能作为论文结果。
 
 MiMo API 的无密钥配置和本地验证方法见

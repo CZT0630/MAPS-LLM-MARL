@@ -1,0 +1,63 @@
+# C6 short pilot gate defaults.  These values are deliberately smaller than the
+# formal C5 banks so the gate can be run before committing GPU/API-scale cost.
+
+pilot_gate:
+  algorithms:
+    - maddpg
+    - mappo
+    - maps_no_annealing
+    - maps
+  seeds: [42, 43]
+  scenario_id: c6_s1_u10_medium_pilot
+  train_scenario_seeds: [1000, 1001]
+  test_scenario_seeds: [2000, 2001]
+  train_steps: 20
+  eval_steps: 20
+  drain_steps: 5
+  batch_size: 4
+  train_frequency: 1
+  update_epochs: 1
+  output_root: artifacts/ei/pilot_gate
+  thresholds:
+    auc_tolerance: 0.0
+    min_auc_delta: 1e-9
+    min_parser_success_rate: 0.95
+    min_valid_action_rate: 0.95
+    max_cache_fallback_rate: 0.05
+    max_runtime_cache_miss_rate: 0.05
+    max_runtime_fallback_rate: 0.05
+
+training:
+  episodes: 2
+  max_steps_per_episode: 20
+
+evaluation:
+  window_steps: 20
+  drain_horizon_steps: 5
+
+maddpg:
+  max_episodes: 2
+  max_steps: 20
+  batch_size: 4
+  train_frequency: 1
+
+llm_maddpg:
+  max_episodes: 2
+  max_steps: 20
+  batch_size: 4
+  train_frequency: 1
+  exploration_episodes: 1
+
+mappo:
+  max_episodes: 2
+  max_steps: 20
+  batch_size: 4
+  update_epochs: 1
+
+maps_no_annealing:
+  max_episodes: 2
+  max_steps: 20
+
+maps:
+  max_episodes: 2
+  max_steps: 20
