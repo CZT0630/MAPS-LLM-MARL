@@ -1104,3 +1104,37 @@ loss、queue backlog、per-node utilization、device energy、expert similarity 
 
 C6 已用冻结 cache 通过两 seed pilot gate。下一阶段可以进入正式实验，但仍不能直接
 写论文最终结论；必须等 5-seed 正式矩阵、统计汇总和图表审计完成后再写结果 claim。
+
+**C7 编排实现记录（2026-06-18）：**
+
+已新增/修改文件：
+
+```text
+configs/ei/formal_matrix.yaml          (新增: E1/E2/E3/E4 正式矩阵定义)
+experiments/ei/formal_matrix.py        (新增: 训练、评估、分析编排与 resume index)
+tests/test_c7_formal_matrix.py         (新增: 矩阵展开与 checkpoint 复用测试)
+README.md                              (更新: C7 dry-run 与分阶段命令)
+```
+
+实现边界：
+
+- 训练矩阵展开为 65 个 learning runs：
+  - E1/S1: 4 methods * 5 seeds = 20。
+  - E3/S2: 3 methods * 3 new scales * 5 seeds = 45。
+- 评估矩阵展开为 118 个 evaluation jobs：
+  - E2 复用 E1 checkpoint，并包含 Greedy-MinCost 与 LLM-only。
+  - E3 复用对应 scale checkpoint，并包含 Greedy-MinCost。
+  - E4 复用 E1/S1 checkpoint，在 loose/medium/strict test banks 上评估。
+- `formal_matrix_index.json` 记录 job key、run_dir、checkpoint 关系和结果，支持
+  分阶段 resume。
+- MAPS 和 MAPS-w/o-Annealing 训练后会检查 runtime cache miss/fallback；若 frozen
+  cache 覆盖不满足阈值，则 job 标记为 `cache_coverage_failed`，不能混入正式结果。
+
+正式执行入口：
+
+```powershell
+python -m experiments.ei.formal_matrix --dry-run
+python -m experiments.ei.formal_matrix --stage training
+python -m experiments.ei.formal_matrix --stage evaluation
+python -m experiments.ei.formal_matrix --stage analysis
+```

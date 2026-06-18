@@ -1,0 +1,61 @@
+# C7 formal EI experiment matrix defaults.
+
+formal_matrix:
+  output_root: artifacts/ei/formal_matrix
+  seeds: [42, 43, 44, 45, 46]
+  baseline_eval_seed: 42
+  base_config: configs/ei/base.yaml
+  expert_cache: artifacts/ei/expert_cache_c6_pilot.json
+  require_maps_cache_coverage: true
+  max_runtime_cache_miss_rate: 0.0
+  max_runtime_fallback_rate: 0.0
+
+  scenarios:
+    s1_u10_medium:
+      scale_config: configs/ei/scales/s1_u10.yaml
+      deadline_config: configs/ei/deadlines/medium.yaml
+      train_bank: artifacts/ei/scenario_banks/s1_u10_medium_train.json
+      test_bank: artifacts/ei/scenario_banks/s1_u10_medium_test.json
+    s2_u20_medium:
+      scale_config: configs/ei/scales/s2_u20.yaml
+      deadline_config: configs/ei/deadlines/medium.yaml
+      train_bank: artifacts/ei/scenario_banks/s2_u20_medium_train.json
+      test_bank: artifacts/ei/scenario_banks/s2_u20_medium_test.json
+    s2_u30_medium:
+      scale_config: configs/ei/scales/s2_u30.yaml
+      deadline_config: configs/ei/deadlines/medium.yaml
+      train_bank: artifacts/ei/scenario_banks/s2_u30_medium_train.json
+      test_bank: artifacts/ei/scenario_banks/s2_u30_medium_test.json
+    s2_u50_medium:
+      scale_config: configs/ei/scales/s2_u50.yaml
+      deadline_config: configs/ei/deadlines/medium.yaml
+      train_bank: artifacts/ei/scenario_banks/s2_u50_medium_train.json
+      test_bank: artifacts/ei/scenario_banks/s2_u50_medium_test.json
+    s3_u10_loose:
+      scale_config: configs/ei/scales/s1_u10.yaml
+      deadline_config: configs/ei/deadlines/loose.yaml
+      train_bank: artifacts/ei/scenario_banks/s3_u10_loose_train.json
+      test_bank: artifacts/ei/scenario_banks/s3_u10_loose_test.json
+    s3_u10_strict:
+      scale_config: configs/ei/scales/s1_u10.yaml
+      deadline_config: configs/ei/deadlines/strict.yaml
+      train_bank: artifacts/ei/scenario_banks/s3_u10_strict_train.json
+      test_bank: artifacts/ei/scenario_banks/s3_u10_strict_test.json
+
+  experiments:
+    e1:
+      scenario: s1_u10_medium
+      learning_methods: [maddpg, mappo, maps_no_annealing, maps]
+    e2:
+      scenario: s1_u10_medium
+      baseline_methods: [greedy_min_cost, llm_only]
+      learning_from: e1
+    e3:
+      scenarios: [s2_u20_medium, s2_u30_medium, s2_u50_medium]
+      baseline_methods: [greedy_min_cost]
+      learning_methods: [maddpg, mappo, maps]
+    e4:
+      test_scenarios: [s3_u10_loose, s1_u10_medium, s3_u10_strict]
+      baseline_methods: [greedy_min_cost]
+      learning_from: e1
+      learning_methods: [maddpg, mappo, maps]

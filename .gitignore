@@ -10,6 +10,7 @@ logs/
 artifacts/ei/pilot_gate/
 artifacts/ei/pilot_gate*/
 artifacts/ei/cache_expansion/
+artifacts/ei/formal_matrix/
 
 .idea/
 .vscode/

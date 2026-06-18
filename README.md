@@ -32,7 +32,7 @@
 
 Phase 1 仅证明基线可运行、可复现，不代表论文方法或性能结论已经成立。Phase 2
 修复了环境物理模型，但尚未用于正式论文实验。C1-C6 已完成，当前下一步是进入
-5-seed 正式实验矩阵。
+5-seed 正式实验矩阵；C7 formal matrix runner 已实现，正式结果仍需完整执行后才能写入论文。
 
 ## 快速开始
 
@@ -87,6 +87,14 @@ python -m experiments.ei.pilot_gate `
   --expert-cache artifacts/ei/expert_cache_c6_pilot.json `
   --live-fill-cache-output artifacts/ei/expert_cache_c6_pilot.json
 
+# C7 formal matrix dry-run
+python -m experiments.ei.formal_matrix --dry-run
+
+# C7 formal matrix stages
+python -m experiments.ei.formal_matrix --stage training
+python -m experiments.ei.formal_matrix --stage evaluation
+python -m experiments.ei.formal_matrix --stage analysis
+
 # 测试
 python -m pytest
 ```
@@ -115,6 +123,7 @@ python -m LLM4RL.main --help
 - `experiments/ei/evaluate.py`：EI 配置片段 + test bank 评估入口。
 - `experiments/ei/analyze.py`：汇总 `evaluation_metrics.json` 与 `task_records.csv`。
 - `experiments/ei/pilot_gate.py`：C6 两 seed pilot gate 编排与门禁报告入口。
+- `experiments/ei/formal_matrix.py`：C7 5-seed 正式矩阵编排、resume index 和分析入口。
 - `fixtures/legacy_expert_cache.json`：仅用于工程验证的固定专家缓存。
 - `configs/ei/base.yaml`：EI 正式配置基底。
 - `configs/ei/methods/`：正文方法配置片段。
@@ -122,6 +131,7 @@ python -m LLM4RL.main --help
 - `configs/ei/deadlines/`：S3 deadline sensitivity 配置片段。
 - `configs/ei/formal_s1.yaml`：C3 cache 和 C4 evaluation 的正式 S1 配置。
 - `configs/ei/pilot.yaml`：C6 短 pilot gate 默认配置与阈值。
+- `configs/ei/formal_matrix.yaml`：C7 E1/E2/E3/E4 正式矩阵定义。
 - `artifacts/ei/scenario_banks/`：C5 冻结 train/test scenario bank 产物。
 - `artifacts/ei/expert_cache_c6_pilot.json`：C6 pilot 训练轨迹覆盖的 MiMo frozen cache。
 - `artifacts/ei/c6_pilot_gate_report.json`：C6 两 seed pilot gate 通过报告。
