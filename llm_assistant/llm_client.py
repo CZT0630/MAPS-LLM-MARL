@@ -45,6 +45,9 @@ class LLMClient:
         self.retry_backoff_seconds = float(
             llm_config.get("retry_backoff_seconds", 1.0)
         )
+        self.retry_backoff_max_seconds = float(
+            llm_config.get("retry_backoff_max_seconds", 30.0)
+        )
         self.timeout = (
             float(llm_config.get("timeout", 30)),
             float(llm_config.get("read_timeout", 120)),
@@ -86,7 +89,9 @@ class LLMClient:
 
         started = time.perf_counter()
         response = None
+        attempt_count = 0
         for attempt in range(self.max_retries + 1):
+            attempt_count = attempt + 1
             try:
                 response = requests.post(
                     self.request_url,
@@ -99,7 +104,12 @@ class LLMClient:
             except requests.RequestException:
                 if attempt >= self.max_retries:
                     raise
-                time.sleep(self.retry_backoff_seconds * (2**attempt))
+                delay = min(
+                    self.retry_backoff_seconds * (2**attempt),
+                    self.retry_backoff_max_seconds,
+                )
+                if delay > 0.0:
+                    time.sleep(delay)
 
         if response is None:
             raise RuntimeError("LLM request did not produce a response")
@@ -122,6 +132,7 @@ class LLMClient:
                 or response.headers.get("request-id")
             ),
             "query_latency_ms": elapsed_ms,
+            "attempt_count": attempt_count,
             "usage": body.get("usage", {}),
         }
         if is_chat:

@@ -89,6 +89,33 @@ def test_mimo_client_requires_environment_credential(monkeypatch):
         client.query("Return JSON only.")
 
 
+def test_mimo_client_retries_transient_request_errors(monkeypatch):
+    monkeypatch.setenv("MIMO_API_KEY", "test-only-secret")
+    config = mimo_config()
+    config["llm"]["max_retries"] = 2
+    config["llm"]["retry_backoff_seconds"] = 0
+    config["llm"]["retry_backoff_max_seconds"] = 0
+    calls = {"count": 0}
+
+    def fake_post(url, headers, json, timeout):
+        calls["count"] += 1
+        if calls["count"] < 3:
+            raise pytest.importorskip("requests").exceptions.SSLError(
+                "transient eof"
+            )
+        return FakeResponse()
+
+    monkeypatch.setattr(
+        "LLM4RL.llm_assistant.llm_client.requests.post",
+        fake_post,
+    )
+    client = LLMClient(config)
+
+    assert client.query("Return JSON only.") == '{"actions": []}'
+    assert calls["count"] == 3
+    assert client.last_metadata["attempt_count"] == 3
+
+
 def test_inline_api_key_is_rejected():
     config = mimo_config()
     config["llm"]["api_key"] = "must-not-be-persisted"

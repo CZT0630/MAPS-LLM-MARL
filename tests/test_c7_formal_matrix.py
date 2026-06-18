@@ -1,8 +1,10 @@
 from LLM4RL.experiments.ei.formal_matrix import (
+    MatrixJob,
     build_evaluation_jobs,
     build_matrix_plan,
     build_training_jobs,
     load_matrix_config,
+    normalize_cache_prefill_result,
 )
 
 
@@ -76,3 +78,60 @@ def test_formal_matrix_plan_is_serializable_and_counts_jobs():
     assert plan["evaluation_job_count"] == 118
     assert plan["training_jobs"][0]["kind"] == "train"
     assert plan["evaluation_jobs"][0]["kind"] == "eval"
+
+
+def _maps_job() -> MatrixJob:
+    return MatrixJob(
+        kind="train",
+        experiment="e1",
+        scenario="s1_u10_medium",
+        algorithm="maps",
+        seed=42,
+        key="train:e1:s1_u10_medium:maps:seed42",
+        scale_config="configs/ei/scales/s1_u10.yaml",
+        deadline_config="configs/ei/deadlines/medium.yaml",
+        train_bank="artifacts/ei/scenario_banks/s1_u10_medium_train.json",
+        test_bank="artifacts/ei/scenario_banks/s1_u10_medium_test.json",
+    )
+
+
+def test_cache_prefill_marks_maps_runs_for_frozen_replay():
+    result = {
+        "status": "cache_coverage_failed",
+        "extra": {
+            "distillation": {
+                "expert": {
+                    "runtime_stats": {
+                        "misses": 3,
+                        "live_fills": 3,
+                        "fallback_rate": 0.0,
+                    }
+                }
+            }
+        },
+    }
+
+    assert normalize_cache_prefill_result(_maps_job(), result) is True
+    assert result["status"] == "cache_prefill_completed"
+    assert result["cache_prefill_requires_frozen_replay"] is True
+
+
+def test_cache_prefill_stops_when_live_fill_has_fallbacks():
+    result = {
+        "status": "cache_coverage_failed",
+        "extra": {
+            "distillation": {
+                "expert": {
+                    "runtime_stats": {
+                        "misses": 3,
+                        "live_fills": 3,
+                        "fallback_rate": 0.2,
+                    }
+                }
+            }
+        },
+    }
+
+    assert normalize_cache_prefill_result(_maps_job(), result) is False
+    assert result["status"] == "cache_prefill_failed"
+    assert result["cache_prefill_requires_frozen_replay"] is True

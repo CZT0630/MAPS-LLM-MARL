@@ -414,6 +414,47 @@ def maps_cache_coverage_ok(matrix: dict[str, Any], result: dict[str, Any]) -> bo
     )
 
 
+def _expert_runtime_stats(result: dict[str, Any]) -> dict[str, Any]:
+    return (
+        result.get("extra", {})
+        .get("distillation", {})
+        .get("expert", {})
+        .get("runtime_stats", {})
+    )
+
+
+def normalize_cache_prefill_result(
+    job: MatrixJob,
+    result: dict[str, Any],
+) -> bool:
+    """Mark MAPS live-fill runs as prefill artifacts, not formal passes.
+
+    Returns True when the matrix runner should continue to the next job.
+    Non-MAPS jobs and real failures keep the normal stop-on-failure behavior.
+    """
+    if job.algorithm not in MAPS_METHODS:
+        return result.get("status") == "passed"
+
+    status = result.get("status")
+    if status == "passed":
+        result["status"] = "cache_prefill_completed"
+        result["cache_prefill_requires_frozen_replay"] = True
+        return True
+
+    if status != "cache_coverage_failed":
+        return False
+
+    stats = _expert_runtime_stats(result)
+    if float(stats.get("fallback_rate") or 0.0) > 0.0:
+        result["status"] = "cache_prefill_failed"
+        result["cache_prefill_requires_frozen_replay"] = True
+        return False
+
+    result["status"] = "cache_prefill_completed"
+    result["cache_prefill_requires_frozen_replay"] = True
+    return True
+
+
 def run_training_job(
     matrix: dict[str, Any],
     job: MatrixJob,
@@ -506,7 +547,10 @@ def execute_matrix(
     max_jobs: int | None,
     expert_cache: str | None,
     live_fill_cache_output: str | None,
+    cache_prefill: bool,
 ) -> dict[str, Any]:
+    if cache_prefill and not live_fill_cache_output:
+        raise ValueError("--cache-prefill requires --live-fill-cache-output")
     output_root = resolve_project_path(matrix["output_root"])
     output_root.mkdir(parents=True, exist_ok=True)
     training_jobs = _select_jobs(build_training_jobs(matrix), experiments, max_jobs)
@@ -545,7 +589,15 @@ def execute_matrix(
             }
             executed["training"] += 1
             write_index(output_root, index)
-            if result.get("status") != "passed":
+            should_continue = (
+                normalize_cache_prefill_result(job, result)
+                if cache_prefill
+                else result.get("status") == "passed"
+            )
+            if cache_prefill:
+                index["training"][job.key]["result"] = result
+                write_index(output_root, index)
+            if not should_continue:
                 break
 
     if stage in {"evaluation", "all"}:
@@ -608,6 +660,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--live-fill-cache-output",
         help="Enable MiMo-on-miss during MAPS training for cache prefill only.",
     )
+    parser.add_argument(
+        "--cache-prefill",
+        action="store_true",
+        help=(
+            "Continue MAPS training live-fill runs after cache misses and mark "
+            "them as requiring frozen replay instead of formal passes."
+        ),
+    )
     return parser
 
 
@@ -625,6 +685,7 @@ def main() -> int:
         max_jobs=args.max_jobs,
         expert_cache=args.expert_cache,
         live_fill_cache_output=args.live_fill_cache_output,
+        cache_prefill=args.cache_prefill,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
     if result.get("dry_run"):

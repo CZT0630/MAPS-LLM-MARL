@@ -12,5 +12,6 @@ llm:
   enable_thinking: false
   timeout: 30
   read_timeout: 180
-  max_retries: 3
-  retry_backoff_seconds: 1.0
+  max_retries: 8
+  retry_backoff_seconds: 2.0
+  retry_backoff_max_seconds: 30.0

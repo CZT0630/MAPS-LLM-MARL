@@ -1129,6 +1129,8 @@ README.md                              (更新: C7 dry-run 与分阶段命令)
   分阶段 resume。
 - MAPS 和 MAPS-w/o-Annealing 训练后会检查 runtime cache miss/fallback；若 frozen
   cache 覆盖不满足阈值，则 job 标记为 `cache_coverage_failed`，不能混入正式结果。
+- `--cache-prefill` 只用于 live-fill 扩展 cache：MAPS live-fill 结果会标记为
+  `cache_prefill_completed` 且必须 frozen replay，不会被 resume 逻辑当作正式通过。
 
 正式执行入口：
 
@@ -1138,3 +1140,15 @@ python -m experiments.ei.formal_matrix --stage training
 python -m experiments.ei.formal_matrix --stage evaluation
 python -m experiments.ei.formal_matrix --stage analysis
 ```
+
+**C7 E1 执行检查点（2026-06-19）：**
+
+- E1/S1 training 已完成 20/20 frozen passed。
+- `maps_no_annealing` 和 `maps` 的 10 个 MAPS jobs 均在最终 frozen replay 中达到
+  runtime cache miss rate = 0、fallback rate = 0。
+- `artifacts/ei/expert_cache_formal_s1.json` 已扩展到 4576 entries，parser success
+  rate、valid action rate 均为 100%，cache fallback rate 为 0。
+- MiMo API 调用仅发生在 cache prefill/expansion 阶段；正式 frozen training
+  replay 阶段不在线调用 LLM。
+- 后续继续 E3 training cache prefill/frozen replay，然后运行 E2/E3/E4 evaluation
+  与 analysis。

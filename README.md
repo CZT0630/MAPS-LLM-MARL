@@ -95,6 +95,12 @@ python -m experiments.ei.formal_matrix --stage training
 python -m experiments.ei.formal_matrix --stage evaluation
 python -m experiments.ei.formal_matrix --stage analysis
 
+# C7 MAPS cache prefill only; rerun frozen training afterwards
+python -m experiments.ei.formal_matrix --stage training `
+  --expert-cache artifacts/ei/expert_cache_formal_s1.json `
+  --live-fill-cache-output artifacts/ei/expert_cache_formal_s1.json `
+  --cache-prefill
+
 # 测试
 python -m pytest
 ```
