@@ -1172,3 +1172,22 @@ python -m experiments.ei.formal_matrix --stage analysis
   fallback rate = 0；live MiMo 调用仅发生在 prefill/expansion 阶段。
 - 后续继续运行 E2/E3/E4 evaluation 与 analysis；在统计汇总完成前仍不能写论文
   最终结果 claim。
+
+**C7 E2/E3/E4 evaluation 执行检查点（2026-06-21）：**
+
+- E2/E3/E4 frozen evaluation 已完成 118/118 passed：
+  - E2/S1 main evaluation: 22/22 passed。
+  - E3/S2 scale evaluation: 48/48 passed。
+  - E4 deadline sensitivity evaluation: 48/48 passed。
+- E2 的 `llm_only` baseline 首次 frozen replay 暴露 S1 test bank cache miss；
+  已用真实 MiMo API 仅在 prefill 阶段补齐 S1 test states，随后重跑正式
+  frozen evaluation，`llm_only` 以 `online_api_calls=0` 通过。
+- `artifacts/ei/expert_cache_formal_s1.json` 已扩展到 13822 entries，文件大小
+  83,444,212 bytes；parser success rate、valid action rate 均为 100%，cache
+  fallback rate 为 0，仍低于 GitHub 100 MB 单文件限制。
+- `formal_matrix_index.json` 本地记录 training 65/65 passed、evaluation 118/118
+  passed；`analysis/evaluation_summary.csv` 本地汇总 118 行 evaluation 结果。
+- `artifacts/ei/formal_matrix/` 仍按 `.gitignore` 作为本地实验产物目录处理；
+  提交仓库时记录 cache 与计划文档，不强制提交完整 run logs。
+- 后续进入结果审计：检查 E2/E3/E4 指标方向、显著性/置信区间、异常 seed、
+  图表与论文表格；完成统计审计前仍不能写最终性能 claim。
