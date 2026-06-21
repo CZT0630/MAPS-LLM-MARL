@@ -1152,3 +1152,23 @@ python -m experiments.ei.formal_matrix --stage analysis
   replay 阶段不在线调用 LLM。
 - 后续继续 E3 training cache prefill/frozen replay，然后运行 E2/E3/E4 evaluation
   与 analysis。
+
+**C7 E3 training 执行检查点（2026-06-21）：**
+
+- E3/S2 training 已完成 45/45 frozen passed：
+  - U20: 15/15 passed。
+  - U30: 15/15 passed。
+  - U50: 15/15 passed。
+- U20/U30 MAPS frozen replay 使用 `artifacts/ei/expert_cache_formal_s1.json`；
+  U50 使用独立 shard `artifacts/ei/expert_cache_formal_u50.json`，避免单个 cache
+  文件逼近 GitHub 100 MB 限制。
+- `artifacts/ei/expert_cache_formal_s1.json` 已扩展到 9576 entries，文件大小
+  65,228,606 bytes；parser success rate、valid action rate 均为 100%，cache
+  fallback rate 为 0。
+- `artifacts/ei/expert_cache_formal_u50.json` 已生成 5558 entries，文件大小
+  83,321,785 bytes；parser success rate、valid action rate 均为 100%，cache
+  fallback rate 为 0。
+- U20/U30/U50 的最终 MAPS frozen replay 均达到 runtime cache miss rate = 0、
+  fallback rate = 0；live MiMo 调用仅发生在 prefill/expansion 阶段。
+- 后续继续运行 E2/E3/E4 evaluation 与 analysis；在统计汇总完成前仍不能写论文
+  最终结果 claim。
