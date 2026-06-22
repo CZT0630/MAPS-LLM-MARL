@@ -95,6 +95,11 @@ python -m experiments.ei.formal_matrix --stage training
 python -m experiments.ei.formal_matrix --stage evaluation
 python -m experiments.ei.formal_matrix --stage analysis
 
+# C8 result audit, statistics, and figures from the C7 summary
+python -m experiments.ei.results_audit `
+  --input-csv artifacts/ei/formal_matrix/analysis/evaluation_summary.csv `
+  --output-dir artifacts/ei/formal_matrix/results_audit
+
 # C7 MAPS cache prefill only; rerun frozen training afterwards
 python -m experiments.ei.formal_matrix --stage training `
   --expert-cache artifacts/ei/expert_cache_formal_s1.json `

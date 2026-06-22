@@ -1100,10 +1100,12 @@ loss、queue backlog、per-node utilization、device energy、expert similarity 
 
 当前最先执行的不是继续增加 baseline，而是：
 
-> 运行 5-seed 正式矩阵。
+> 建立 `paper/ei/` 论文工作区，并基于 C8 审计产物重写 Experiments/Results。
 
-C6 已用冻结 cache 通过两 seed pilot gate。下一阶段可以进入正式实验，但仍不能直接
-写论文最终结论；必须等 5-seed 正式矩阵、统计汇总和图表审计完成后再写结果 claim。
+C7 5-seed 正式矩阵和 C8 统计审计均已完成。下一阶段可以进入论文工作区与结果章节
+重写，但仍必须逐条从 `artifacts/ei/formal_matrix/results_audit/` 中定位证据；
+Greedy-MinCost 和 LLM-only 的单 seed 对比只能作为描述性结果，不能写成 seed-level
+显著性 claim。
 
 **C7 编排实现记录（2026-06-18）：**
 
@@ -1191,3 +1193,40 @@ python -m experiments.ei.formal_matrix --stage analysis
   提交仓库时记录 cache 与计划文档，不强制提交完整 run logs。
 - 后续进入结果审计：检查 E2/E3/E4 指标方向、显著性/置信区间、异常 seed、
   图表与论文表格；完成统计审计前仍不能写最终性能 claim。
+
+**C8 结果审计与统计分析完成记录（2026-06-22）：**
+
+新增文件：
+```text
+experiments/ei/results_audit.py        (C8 结果审计、统计表、claim gate 与 SVG 图生成)
+tests/test_results_audit.py            (C8 统计边界、baseline blocker 与在线 API gate 测试)
+```
+
+正式执行入口：
+```powershell
+python -m experiments.ei.results_audit `
+  --input-csv artifacts/ei/formal_matrix/analysis/evaluation_summary.csv `
+  --output-dir artifacts/ei/formal_matrix/results_audit
+```
+
+本地 C8 输出：
+- `audit_summary.json`
+- `descriptive_stats.csv`
+- `scenario_descriptive_stats.csv`
+- `paired_contrasts.csv`
+- `analysis-report.md`
+- `stats-appendix.md`
+- `figure-catalog.md`
+- `figures/figure-01-e2-main-comparison.svg`
+- `figures/figure-02-e3-scale-trend.svg`
+- `figures/figure-03-e4-deadline-sensitivity.svg`
+
+审计结果：
+- C7 的 118 个 evaluation run 全部被 C8 读取并审计，`issue_count=0`。
+- gate 全部通过：required artifacts present、manifest passed、evaluation online API calls
+  为 0、MAPS actor-only evaluation、LLM-only cache coverage complete。
+- 学习方法对比以同 experiment、同 scenario、同 seed 的 paired training seed 为统计单位；
+  Greedy-MinCost 和 LLM-only 因当前仅 1 个 evaluation seed，被明确标记为
+  descriptive-only/blocker，不写 seed-level significance claim。
+- C8 生成 claim candidates，但仍要求论文正文只采用 `paired_contrasts.csv` 和
+  `descriptive_stats.csv` 支持的保守表述。
